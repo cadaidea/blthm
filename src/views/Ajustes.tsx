@@ -122,6 +122,37 @@ export default function Ajustes() {
         </Card>
       </div>
 
+      {/* flujo GitHub */}
+      <Card className="anim-up hover:shadow-md transition-shadow" pad={false}>
+        <div className="p-4 pb-0">
+          <SectionTitle kicker="Recomendado · versionado y rollback" title="Subir a GitHub (la fuente de verdad)" right={<Badge tone="pine">git-ready</Badge>} />
+          <p className="text-[12px] text-mut max-w-3xl -mt-1 mb-3">
+            GitHub es tu <b>historial</b>: cada entrega queda como commit y puedes volver atrás con un <span className="font-mono">git revert</span>.
+            El VPS puede clonar directo o seguir usando el .zip — ambos caminos conviven. El ZIP ya incluye <span className="font-mono">.gitignore</span>, así que <span className="font-mono">node_modules</span>, <span className="font-mono">dist</span> y <span className="font-mono">.env</span> quedan fuera del repo.
+          </p>
+        </div>
+        <div className="px-4 pb-4 grid md:grid-cols-3 gap-3">
+          <Cmd title="1 · Crear repo y primer push (una vez)" cmd={`git init
+git add -A
+git commit -m "v1.0 — suite mueblera (12 módulos)"
+git branch -M main
+git remote add origin git@github.com:TU-USUARIO/taller-uno.git
+git push -u origin main`} />
+          <Cmd title="2 · Publicar una actualización (rutina)" cmd={`git add -A
+git commit -m "v1.1 — guías de remisión SRI"
+git tag v1.1.0 && git push origin main --tags`} />
+          <Cmd title="3 · En el VPS — desplegar desde GitHub" cmd={`# primera vez:
+git clone git@github.com:TU-USUARIO/taller-uno.git /var/www/taller-uno
+# cada actualización:
+cd /var/www/taller-uno && git pull
+npm install && npm run build && docker compose restart web`} />
+        </div>
+        <div className="mx-4 mb-4 rounded-lg bg-oakl/60 border border-oak/25 px-3.5 py-2.5 text-[11.5px] text-oakd flex items-start gap-2">
+          <Icon name="alert" size={14} className="shrink-0 mt-0.5" />
+          <span><b>Flujo híbrido sugerido:</b> GitHub como origen del código (paso 3) y el .zip como plan B offline. Nunca subas <span className="font-mono">.env</span> ni credenciales al repo — el <span className="font-mono">.gitignore</span> ya los bloquea.</span>
+        </div>
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="anim-up">
           <SectionTitle kicker="Domicilio fiscal · Ecuador" title="Datos de la empresa" />
