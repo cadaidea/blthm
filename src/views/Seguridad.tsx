@@ -255,6 +255,88 @@ export default function Seguridad() {
               </div>
             </div>
           </Card>
+
+          {/* entrega del código: carpeta bletia_pudo */}
+          <Card pad={false}>
+            <div className="p-4 pb-0">
+              <SectionTitle
+                kicker="Revisión de código · GitHub"
+                title="Sí: súbelo como carpeta bletia_pudo — así es como lo leo"
+                right={<Badge tone="pine" dot>recomendado</Badge>}
+              />
+              <p className="text-[12.5px] text-mut mt-1 max-w-3xl leading-relaxed">
+                Es el patrón correcto y coincide con tu propia decisión de dejar Laravel como <b className="text-ink">"baúl de referencia"</b>. Dos condiciones:
+                el repo debe ser <b className="text-ink">público</b> (no tengo credenciales para entrar a uno privado) y <b className="text-ink">sin secretos</b> dentro.
+              </p>
+            </div>
+            <div className="grid lg:grid-cols-5 gap-4 p-4">
+              {/* árbol del repo */}
+              <div className="lg:col-span-2 rounded-xl bg-night overflow-hidden border border-paper/10 self-start">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-paper/10">
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-paper/40">taller-uno · GitHub</span>
+                  <span className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-brick/70" /><span className="w-2.5 h-2.5 rounded-full bg-oak/70" /><span className="w-2.5 h-2.5 rounded-full bg-moss/70" /></span>
+                </div>
+                <pre className="p-3.5 font-mono text-[11.5px] leading-[1.8] text-[#9fd4b8] overflow-x-auto">
+{`taller-uno/
+├── src/            ← la suite (12 módulos)
+├── deploy/         ← ssh + docker
+└── bletia_pudo/    ← 📦 tu baúl Laravel (referencia)
+    ├── app/Services/
+    │   ├── EstadoPedidoErp.php  🔴
+    │   ├── FlujoErp.php         🔴
+    │   ├── DespachoErp.php      🔴
+    │   ├── RecibosErp.php       🔴
+    │   ├── CobroSaldo.php       🔴
+    │   ├── XmlNotaCredito.php   🟡
+    │   └── LibroTributario.php  🟢
+    ├── app/Models/  (los 77, opcional)
+    ├── README-porting.md  ← tu mapa
+    └── 🚫 nada de .env / .p12 / claves`}
+                </pre>
+              </div>
+
+              {/* reglas */}
+              <div className="lg:col-span-3 space-y-3">
+                <div className="rounded-lg border border-pine/25 bg-pinel/40 p-3">
+                  <div className="flex items-center gap-2 text-pined font-bold text-[12.5px] mb-1.5"><Icon name="eye" size={14} />Cómo lo leo yo</div>
+                  <div className="text-[12px] text-pined leading-relaxed">
+                    Con el repo <b>público</b>, leo cada archivo por su URL directa de GitHub
+                    (<span className="font-mono text-[10.5px]">raw.githubusercontent.com/tu-usuario/taller-uno/main/bletia_pudo/…</span>) —
+                    me pasas la URL o el nombre y yo lo abro. Si prefieres el repo <b>privado</b>, pégame el contenido del service aquí en el chat, como hiciste con el mapa.
+                  </div>
+                </div>
+                <div className="rounded-lg border border-brick/30 bg-brickl/50 p-3">
+                  <div className="flex items-center gap-2 text-brick font-bold text-[12.5px] mb-1.5"><Icon name="key" size={14} />Qué NO subas nunca</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[".env / .env.example con valores reales", "certificados .p12 (firma SRI)", "token de producción PayPhone", "claves de base de datos", "RUC + contraseña del SRI"].map((x) => (
+                      <span key={x} className="font-mono text-[10.5px] bg-card border border-brick/25 text-brick rounded px-2 py-0.5">{x}</span>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-mut mt-2">El código de los services y modelos <b className="text-ink">sí</b> se puede subir sin riesgo — la lógica no es un secreto.</p>
+                </div>
+                <div className="rounded-lg border border-line p-3">
+                  <div className="flex items-center gap-2 text-ink font-bold text-[12.5px] mb-2"><Icon name="arrow" size={14} />Orden sugerido (del más valioso al menos)</div>
+                  <div className="space-y-1.5">
+                    {[
+                      ["🔴", "EstadoPedidoErp.php + FlujoErp.php", "validar las transiciones y guardas exactas del pedido"],
+                      ["🔴", "RecibosErp.php + CobroSaldo.php", "reglas reales de imputación de saldos"],
+                      ["🟡", "XmlNotaCredito.php + AnularFactura.php", "montar la UI de NC sobre el motor que ya existe"],
+                      ["🟢", "LibroTributario.php", "ATS 101/102 — fase contable posterior"],
+                    ].map(([tag, file, why], i) => (
+                      <div key={file} className="flex items-start gap-2 text-[12px]">
+                        <span>{tag}</span>
+                        <span><span className="font-mono text-[11px] text-ink font-semibold">{file}</span> <span className="text-mut">— {why}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-line">
+                    <span className="text-[11px] text-fog">Empieza por los 🔴: 2 archivos bastan para afinar el núcleo.</span>
+                    <Btn size="sm" variant="outline" icon="copy" onClick={async () => { await copyText("bletia_pudo/app/Services/EstadoPedidoErp.php"); toast("Ruta copiada — pégala en tu explorador de archivos"); }}>copiar ruta</Btn>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       )}
 
