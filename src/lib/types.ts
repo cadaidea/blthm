@@ -1,6 +1,6 @@
 export type View =
   | "dashboard" | "pim" | "oms" | "crm" | "taller" | "bom" | "logistica"
-  | "cobros" | "dam" | "contabilidad" | "accesos" | "ajustes";
+  | "cobros" | "dam" | "contabilidad" | "accesos" | "seguridad" | "ajustes";
 
 export type Warehouse = "showroom" | "bodega" | "taller";
 

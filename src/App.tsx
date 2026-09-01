@@ -14,6 +14,7 @@ import Cobros from "./views/Cobros";
 import Dam from "./views/Dam";
 import Contabilidad from "./views/Contabilidad";
 import Accesos from "./views/Accesos";
+import Seguridad from "./views/Seguridad";
 import Ajustes from "./views/Ajustes";
 
 function Splash({ done }: { done: boolean }) {
@@ -68,6 +69,7 @@ function Workspace() {
         {view === "dam" && <Dam key={`m${visit}`} />}
         {view === "contabilidad" && <Contabilidad key={`a${visit}`} />}
         {view === "accesos" && <Accesos key={`s${visit}`} />}
+        {view === "seguridad" && <Seguridad key={`g${visit}`} />}
         {view === "ajustes" && <Ajustes key={`j${visit}`} />}
       </Shell>
       <ToastHost toasts={toasts} />

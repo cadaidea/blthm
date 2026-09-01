@@ -26,6 +26,7 @@ const NAV: { group: string; items: { id: View; label: string; icon: string }[] }
   ]},
   { group: "Plataforma", items: [
     { id: "accesos", label: "Accesos de un solo uso", icon: "key" },
+    { id: "seguridad", label: "Seguridad & cumplimiento", icon: "shield" },
     { id: "ajustes", label: "Ajustes & despliegue", icon: "gear" },
   ]},
 ];
