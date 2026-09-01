@@ -31,13 +31,95 @@ export default function Ajustes() {
 
   const saveCo = () => { dispatch({ type: "SETTINGS", patch: { company: co } }); toast("Datos de la empresa guardados"); };
   const savePp = () => { dispatch({ type: "SETTINGS", patch: { payphone: pp } }); toast(pp.mode === "sandbox" ? "Credenciales sandbox guardadas" : "¡Cuidado! credenciales de producción activas", pp.mode === "sandbox" ? "ok" : "warn"); };
-  const reset = () => { localStorage.removeItem("taller-uno-v1"); location.reload(); };
+  const reset = () => { localStorage.removeItem("taller-uno-v2"); location.reload(); };
+
+  const bajarZip = async () => {
+    toast("Empaquetando 36 archivos + guías de despliegue…", "info");
+    const { exportProjectZip } = await import("../lib/projectFiles");
+    await exportProjectZip(state);
+    toast("taller-uno.zip descargado — súbelo al VPS por File Manager");
+  };
+  const bajarDatos = async () => {
+    const { exportDataJson } = await import("../lib/projectFiles");
+    exportDataJson(state);
+    toast("Datos exportados en JSON — llévalos a producción vía importador");
+  };
 
   return (
     <div className="space-y-4">
       <div className="anim-up">
         <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">Plataforma</div>
         <h1 className="font-display font-extrabold text-[26px] text-ink mt-0.5">Ajustes, integraciones y despliegue</h1>
+      </div>
+
+      {/* entrega del proyecto */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="anim-up hover:shadow-md transition-shadow">
+          <SectionTitle kicker="Tu flujo: File Manager → SSH" title="Paquete de entrega (.zip)" />
+          <div className="space-y-3">
+            <div className="rounded-xl bg-night p-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="font-mono text-[12.5px] text-oakl">taller-uno.zip</div>
+                <div className="text-[11px] text-paper/50 mt-0.5">36 archivos de código real · ~420 KB comprimido</div>
+              </div>
+              <span className="w-11 h-11 rounded-xl bg-pined text-oakl grid place-items-center shrink-0"><Icon name="package" size={20} /></span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11.5px]">
+              <div className="rounded-lg border border-line p-2.5">
+                <div className="text-[9.5px] uppercase tracking-wider font-bold text-[#41621f] mb-1">✓ Incluye</div>
+                <ul className="text-mut space-y-0.5 leading-relaxed">
+                  <li>src/ completo (los 12 módulos)</li>
+                  <li>package.json · vite · tailwind</li>
+                  <li>docker-compose.yml + nginx.conf</li>
+                  <li>deploy/comandos-ssh.txt (paso a paso)</li>
+                  <li>deploy/datos-demo.json (tus datos)</li>
+                </ul>
+              </div>
+              <div className="rounded-lg border border-line p-2.5">
+                <div className="text-[9.5px] uppercase tracking-wider font-bold text-brick mb-1">✗ No incluye (correcto)</div>
+                <ul className="text-mut space-y-0.5 leading-relaxed">
+                  <li>node_modules — se crea con npm install</li>
+                  <li>Base de datos — vive en el VPS</li>
+                  <li>dist/ — se genera con npm run build</li>
+                  <li>Credenciales reales — van en .env</li>
+                </ul>
+              </div>
+            </div>
+            <Btn className="w-full" icon="dl" onClick={bajarZip}>Descargar taller-uno.zip</Btn>
+            <p className="text-[11px] text-fog leading-relaxed">
+              El ZIP se genera con el <b>código tal como está corriendo ahora</b>. Lo subes al VPS por File Manager y aplicas
+              los comandos de <span className="font-mono">deploy/comandos-ssh.txt</span> — actualización sin pérdida de datos en ~2 segundos.
+            </p>
+          </div>
+        </Card>
+
+        <Card className="anim-up hover:shadow-md transition-shadow">
+          <SectionTitle kicker="Pregunta clave" title="¿Dónde vive la base de datos?" />
+          <div className="space-y-2.5">
+            <div className="rounded-lg border border-line p-3 flex items-start gap-2.5">
+              <span className="w-8 h-8 rounded-lg bg-steell text-steel grid place-items-center shrink-0"><Icon name="panel" size={15} /></span>
+              <div className="text-[12px] text-mut leading-relaxed">
+                <b className="text-ink">Aquí (demo):</b> tus datos viven en el navegador (localStorage). Funcional y persistente en tu máquina — <b className="text-brick">no</b> es donde deben vivir en producción.
+              </div>
+            </div>
+            <div className="rounded-lg border border-pine/25 bg-pinel/40 p-3 flex items-start gap-2.5">
+              <span className="w-8 h-8 rounded-lg bg-pinel text-pined grid place-items-center shrink-0"><Icon name="server" size={15} /></span>
+              <div className="text-[12px] text-pined leading-relaxed">
+                <b>En el VPS:</b> <span className="font-mono text-[11px]">docker compose up -d</span> crea PostgreSQL 16 con el volumen <span className="font-mono text-[11px]">datos_pg</span>. Al re-subir un .zip nuevo, <b>solo cambia el código — la base jamás se toca</b>. Ahí está garantizado lo de "los trabajadores ni se dan cuenta".
+              </div>
+            </div>
+            <div className="rounded-lg border border-line p-3 flex items-start gap-2.5">
+              <span className="w-8 h-8 rounded-lg bg-oakl text-oakd grid place-items-center shrink-0"><Icon name="arrow" size={15} /></span>
+              <div className="text-[12px] text-mut leading-relaxed">
+                <b className="text-ink">El puente:</b> exporta tus datos de la demo ahora y cárgalos en producción cuando conectemos la API NestJS.
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Btn variant="outline" icon="dl" className="flex-1" onClick={bajarDatos}>Exportar mis datos (JSON)</Btn>
+              <Btn variant="ghost" icon="refresh" onClick={() => { if (confirm("¿Restablecer la demo a los datos de fábrica? Tus cambios locales se pierden.")) reset(); }}>Reset demo</Btn>
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
