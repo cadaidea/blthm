@@ -8,6 +8,8 @@ import Productos from "./views/Productos";
 import Operaciones from "./views/Operaciones";
 import Terceros from "./views/Terceros";
 import Taller from "./views/Taller";
+import Materiales from "./views/Materiales";
+import Logistica from "./views/Logistica";
 import Cobros from "./views/Cobros";
 import Dam from "./views/Dam";
 import Contabilidad from "./views/Contabilidad";
@@ -22,7 +24,7 @@ function Splash({ done }: { done: boolean }) {
           <Icon name="logo" size={34} />
         </div>
         <div className="font-display font-extrabold text-[22px] text-paper tracking-wide mt-4">TALLER UNO</div>
-        <div className="font-mono text-[10px] tracking-[0.3em] text-paper/40 uppercase mt-1.5">Suite mueblera · ERP · CRM · PIM · OMS</div>
+        <div className="font-mono text-[10px] tracking-[0.3em] text-paper/40 uppercase mt-1.5">Suite mueblera · ERP · CRM · PIM · OMS · MES</div>
         <div className="mt-5 w-44 h-1 mx-auto rounded-full bg-paper/10 overflow-hidden">
           <div className="h-full bg-oak rounded-full" style={{ animation: "growX 0.7s ease-out both", width: "100%", transformOrigin: "left" }} />
         </div>
@@ -60,6 +62,8 @@ function Workspace() {
         {view === "oms" && <Operaciones key={`o${visit}`} initialQuery={param} />}
         {view === "crm" && <Terceros key={`c${visit}`} />}
         {view === "taller" && <Taller key={`t${visit}`} />}
+        {view === "bom" && <Materiales key={`b${visit}`} />}
+        {view === "logistica" && <Logistica key={`l${visit}`} />}
         {view === "cobros" && <Cobros key={`k${visit}`} />}
         {view === "dam" && <Dam key={`m${visit}`} />}
         {view === "contabilidad" && <Contabilidad key={`a${visit}`} />}

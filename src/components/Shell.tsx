@@ -8,13 +8,17 @@ import { Badge, Icon } from "./ui";
 const NAV: { group: string; items: { id: View; label: string; icon: string }[] }[] = [
   { group: "Operación", items: [
     { id: "dashboard", label: "Panel de control", icon: "panel" },
-    { id: "pim", label: "Productos · PIM", icon: "box" },
     { id: "oms", label: "Pedidos · OMS", icon: "truck" },
+    { id: "logistica", label: "Logística & guías SRI", icon: "package" },
     { id: "taller", label: "Taller & fabricación", icon: "saw" },
+    { id: "bom", label: "BOM & materiales", icon: "layers" },
   ]},
   { group: "Relaciones", items: [
     { id: "crm", label: "Clientes & proveedores", icon: "users" },
     { id: "cobros", label: "Cobros PayPhone", icon: "qr" },
+  ]},
+  { group: "Producto", items: [
+    { id: "pim", label: "Productos · PIM", icon: "box" },
   ]},
   { group: "Activos & finanzas", items: [
     { id: "dam", label: "Medios · DAM", icon: "image" },

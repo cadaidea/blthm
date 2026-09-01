@@ -41,6 +41,10 @@ const P: Record<string, ReactNode> = {
   phone: <path d="M7 3.5H5.5a2 2 0 0 0-2 2c0 8.3 6.7 15 15 15a2 2 0 0 0 2-2V17l-4-1.5-2 2a12.5 12.5 0 0 1-6-6l2-2L9 5.5 7 3.5z" />,
   mail: <><rect x="3" y="5.5" width="18" height="13" rx="1.8" /><path d="m3.5 7 8.5 6 8.5-6" /></>,
   star: <path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8L12 3.5z" />,
+  eye: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="2.8" /></>,
+  layers: <><path d="m12 3.5 8.5 4.5L12 12.5 3.5 8 12 3.5z" /><path d="m3.5 12 8.5 4.5L20.5 12M3.5 16l8.5 4.5L20.5 16" /></>,
+  package: <><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9z" /><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M7.7 5.2l8.6 4.6" /></>,
+  brush: <><path d="m14.5 4 5.5 5.5-8.5 8.5c-1.5 1.5-4 1.5-5.5 0s-1.5-4 0-5.5L14.5 4z" /><path d="m12 6.5 5.5 5.5M4.5 20.5c1.5 0 2.5-1 2.5-2.5" /></>,
 };
 
 export function Icon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {

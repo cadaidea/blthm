@@ -33,7 +33,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
   const porCobrar = state.orders.filter((o) => o.payment !== "pagado" && o.status !== "anulado").reduce((a, o) => a + o.total, 0);
   const woActive = state.workOrders.filter((w) => w.status !== "terminada");
   const lowStock = state.products.filter((p) => p.stock.showroom + p.stock.bodega + p.stock.taller <= p.min);
-  const upcoming = openOrders.filter((o) => ["confirmado", "listo", "despacho"].includes(o.status)).slice(0, 4);
+  const upcoming = openOrders.filter((o) => ["aprobado", "en_bodega", "listo_despacho", "despachado"].includes(o.status)).slice(0, 4);
 
   const channelData = useMemo(() => {
     const by: Record<string, number> = { tienda: 0, web: 0, link_pago: 0, whatsapp: 0 };
@@ -75,8 +75,10 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
             {num(openOrders.length)} pedidos abiertos · {woActive.length} órdenes en fabricación · {lowStock.length} SKUs bajo mínimo
           </p>
         </div>
-        <div className="flex gap-2">
-          <Btn variant="outline" icon="plus" onClick={() => nav("oms")}>Nuevo pedido</Btn>
+        <div className="flex flex-wrap gap-2">
+          <Btn variant="outline" icon="box" onClick={() => nav("oms", "stock")}>Vender stock</Btn>
+          <Btn variant="outline" icon="saw" onClick={() => nav("oms", "pedido")}>Bajo pedido</Btn>
+          <Btn variant="dark" icon="ext" onClick={() => nav("oms", "online")}>Tomar online</Btn>
           <Btn icon="qr" onClick={() => nav("cobros")}>Cobrar con PayPhone</Btn>
         </div>
       </div>
@@ -84,7 +86,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
       {/* KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 stagger">
         <Stat label="Ventas de hoy" value={money(state.session.salesToday)} flash={salesFlash} icon="tag" tone="pine" sub={<span className="text-moss font-semibold">▲ en vivo vía bus de eventos</span>} />
-        <Stat label="Pedidos abiertos" value={num(openOrders.length)} icon="truck" tone="steel" sub={`${openOrders.filter((o) => o.status === "fabricacion").length} en taller · ${openOrders.filter((o) => o.status === "despacho").length} en ruta`} />
+        <Stat label="Pedidos abiertos" value={num(openOrders.length)} icon="truck" tone="steel" sub={`${openOrders.filter((o) => o.status === "fabricacion").length} en taller · ${openOrders.filter((o) => o.status === "despachado").length} en ruta`} />
         <Stat label="Por cobrar" value={money(porCobrar)} icon="clock" tone="oak" sub={`${state.orders.filter((o) => o.payment !== "pagado" && o.status !== "anulado").length} facturas pendientes`} />
         <Stat label="Órdenes de taller" value={num(woActive.length)} icon="saw" tone="moss" sub={`avance medio ${Math.round(woActive.reduce((a, w) => a + w.progress, 0) / Math.max(1, woActive.length))}%`} />
       </div>
@@ -145,7 +147,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
                       <span className="block text-[13px] font-semibold text-ink">{o.code} · {o.customer}</span>
                       <span className="block text-[11px] text-mut">{o.city} · {tr ? tr.name : "transporte sin asignar"} · ETA {fmtDate(o.eta)}</span>
                     </span>
-                    <Badge tone={o.status === "despacho" ? "steel" : "oak"}>{o.status}</Badge>
+                    <Badge tone={o.status === "despachado" ? "steel" : "oak"}>{o.status.replace("_", " ")}</Badge>
                     <span className="font-mono text-[12.5px] text-ink num">{money(o.total)}</span>
                   </button>
                 );
