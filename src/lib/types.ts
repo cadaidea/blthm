@@ -9,9 +9,10 @@ export type Warehouse = "showroom" | "bodega" | "taller";
    pedido = bajo pedido / con specs de personalización        */
 export type OrderKind = "venta" | "pedido";
 
-/* Máquina de estados BLETIA (FlujoErp) + anulaciones */
+/* Máquina de estados real BLETIA — EstadoPedidoErp::ESTADOS (verificado del código fuente) */
 export type OrderStatus =
-  | "pendiente" | "por_aprobar" | "aprobado" | "fabricacion"
+  | "borrador" | "pendiente" | "por_aprobar" | "aprobado" | "confirmado"
+  | "enviado_proveedor" | "en_fabricacion" | "en_produccion" | "listo_proveedor"
   | "en_bodega" | "listo_despacho" | "despachado" | "entregado"
   | "anulado" | "cancelado";
 

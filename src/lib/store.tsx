@@ -31,8 +31,26 @@ const mkEvent = (type: EventItem["type"], msg: string): EventItem => ({ id: uid(
 const woProgress: Record<WoStatus, number> = { planificada: 5, corte: 25, ensamblaje: 55, acabado: 78, qa: 90, terminada: 100 };
 export const woFlow: WoStatus[] = ["planificada", "corte", "ensamblaje", "acabado", "qa", "terminada"];
 
-/* Máquina de estados BLETIA (FlujoErp) — pedidos y ventas */
-export const orderFlow: OrderStatus[] = ["pendiente", "por_aprobar", "aprobado", "fabricacion", "en_bodega", "listo_despacho", "despachado", "entregado"];
+/* Máquina de estados BLETIA (FlujoErp) — ruta lineal principal: bajo pedido vía proveedor/fabricación */
+export const orderFlow: OrderStatus[] = ["pendiente", "por_aprobar", "aprobado", "confirmado", "enviado_proveedor", "en_bodega", "listo_despacho", "despachado", "entregado"];
+
+/* Etiquetado visible para el cliente — EstadoPedidoErp::ESTADOS_CLIENTE (verificado del código) */
+export const estadosCliente: Record<OrderStatus, string> = {
+  borrador: "En proceso", pendiente: "En revisión", por_aprobar: "En revisión", aprobado: "Confirmado",
+  confirmado: "Confirmado", enviado_proveedor: "En fabricación", en_fabricacion: "En fabricación",
+  en_produccion: "En producción (taller)", listo_proveedor: "Casi listo", en_bodega: "En bodega",
+  listo_despacho: "Listo para despacho", despachado: "Despachado", entregado: "Entregado",
+  anulado: "Anulado", cancelado: "Anulado",
+};
+
+/* Etiquetas internas legibles */
+export const estadosLabel: Record<OrderStatus, string> = {
+  borrador: "Borrador", pendiente: "Pendiente", por_aprobar: "Por aprobar", aprobado: "Aprobado",
+  confirmado: "Confirmado", enviado_proveedor: "Enviado a proveedor", en_fabricacion: "En fabricación",
+  en_produccion: "En producción (taller)", listo_proveedor: "Listo en proveedor", en_bodega: "En bodega",
+  listo_despacho: "Listo para despacho", despachado: "Despachado", entregado: "Entregado",
+  anulado: "Anulado", cancelado: "Cancelado",
+};
 
 const pad9 = (n: number) => String(n).padStart(9, "0");
 

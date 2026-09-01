@@ -54,7 +54,7 @@ const LAYERS: { id: string; title: string; kicker: string; icon: string; ctrls: 
 ];
 
 const PORTING: { src: string; dest: string; status: "portado" | "parcial" | "falta_codigo" | "no_portar"; note: string }[] = [
-  { src: "EstadoPedidoErp / FlujoErp", dest: "OMS · flujo de 8 estados + anulado/cancelado", status: "portado", note: "Replicado desde el mapa; pegar el service real para validar transiciones exactas." },
+  { src: "EstadoPedidoErp / FlujoErp", dest: "OMS · flujo real de 15 estados + vista cliente", status: "portado", note: "✓ Verificado contra el código fuente real: 15 estados, ESTADOS_CLIENTE y anulación con folio ANL." },
   { src: "PedidoItemErp (specs)", dest: "OMS · pestaña Specs (tapiz, lacado, cojines, fotos)", status: "portado", note: "Fotos por campo incluidas." },
   { src: "DespachoErp", dest: "Logística · despachos, rutas, transportistas", status: "portado", note: "Con estados preparación → en ruta → entregado." },
   { src: "RecibosErp / CobroSaldo / ResolucionPago", dest: "OMS · Recibos & saldo + link PayPhone por saldo", status: "portado", note: "REC-secuencial + asiento contable por abono." },
@@ -210,9 +210,9 @@ export default function Seguridad() {
           <Card>
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <SectionTitle kicker="upgrade.bletia.ec · Laravel 13 + Filament 5 → esta suite" title="Mapa de porting, servicio por servicio" />
+                <SectionTitle kicker="cadaidea/blthm · carpeta bletia/ · Laravel 13 + Filament 5 → esta suite" title="Mapa de porting, servicio por servicio" />
                 <p className="text-[12.5px] text-mut mt-1 max-w-3xl">
-                  <b className="text-ink">Cómo funciona:</b> yo no tengo acceso SSH a tu servidor, así que no puedo leer el código de Laravel directamente — pero cuando tú me pegas un service (como hiciste con el mapa de migración), replico su lógica aquí con fidelidad y además le sumo lo que ya tenemos (bus de eventos, links de un solo uso, MRP, guías SRI). Este es el estado real:
+                  <b className="text-ink">Estado:</b> el repo está <b className="text-[#41621f]">ubicado y verificado como público</b> en <span className="font-mono text-[11px]">github.com/cadaidea/blthm</span>, con la app Laravel completa bajo la carpeta <span className="font-mono text-[11px]">bletia/</span>. Ya inventarié la estructura real (abajo). La lectura de los services se hace archivo por archivo vía GitHub — este es el mapa de fidelidad:
                 </p>
               </div>
               <div className="ml-auto flex gap-2">
@@ -222,6 +222,35 @@ export default function Seguridad() {
               </div>
             </div>
           </Card>
+
+          <Card>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <SectionTitle kicker="Leído del repo vía GitHub API" title="Inventario verificado de bletia/" />
+              <Badge tone="moss" dot>repo público · carpeta raíz: bletia/</Badge>
+            </div>
+            <p className="text-[12px] text-mut mt-1 max-w-3xl">
+              Estructura confirmada dentro del repo. Los servicios de negocio viven en <span className="font-mono text-[11px]">bletia/app/Services/</span> — esos son los archivos que porto uno a uno.
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mt-3">
+              {[
+                { d: "app/Services", f: "EstadoPedidoErp · FlujoErp · DespachoErp · RecibosErp · CobroSaldo · LinksErp · Traza · Materiales · Contabilidad · LibroTributario · Nomina · Folios · PayPhone", tag: "🔴 núcleo" },
+                { d: "app/Filament/Pages", f: "CrearPedidoBletia · CrearVentaBletia · BomProductoBletia · ControlMaterialesBletia · ColaProduccion · ChequesPorCobrar · EstadosFinancierosPage", tag: "paneles" },
+                { d: "app/Models", f: "Articulo · Asiento · AsientoLinea · Ajuste · Bitacora · Automatizacion · AvisoStock · Atributo · AtributoOpcion", tag: "77 modelos" },
+                { d: "app/Http/Controllers", f: "Checkout · CompraProveedor · Confirmacion · Seguimiento · Garantia · Cuenta · Shop · Tienda", tag: "web pública" },
+                { d: "app/Console/Commands", f: "SimularPedido · SriProbarFactura · SriVerificar · CobroRecordatorio · MateriaPrimaAvisar · ChequesAvisar", tag: "artisan" },
+                { d: "raíz", f: "SPEC.md (11.8 KB) · aplicar-robots.sh · README.md", tag: "docs" },
+              ].map((g) => (
+                <div key={g.d} className="rounded-lg border border-line p-2.5 hover:border-pine/40 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11.5px] font-semibold text-pine">{g.d}</span>
+                    <span className="text-[9.5px] uppercase tracking-wider font-bold text-oakd">{g.tag}</span>
+                  </div>
+                  <p className="text-[10.5px] text-mut mt-1 leading-relaxed">{g.f}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
           <Card pad={false}>
             <div className="overflow-x-auto">
               <table className="w-full text-[13px] min-w-[820px]">
@@ -300,9 +329,9 @@ export default function Seguridad() {
                 <div className="rounded-lg border border-pine/25 bg-pinel/40 p-3">
                   <div className="flex items-center gap-2 text-pined font-bold text-[12.5px] mb-1.5"><Icon name="eye" size={14} />Cómo lo leo yo</div>
                   <div className="text-[12px] text-pined leading-relaxed">
-                    Con el repo <b>público</b>, leo cada archivo por su URL directa de GitHub
-                    (<span className="font-mono text-[10.5px]">raw.githubusercontent.com/tu-usuario/taller-uno/main/bletia_pudo/…</span>) —
-                    me pasas la URL o el nombre y yo lo abro. Si prefieres el repo <b>privado</b>, pégame el contenido del service aquí en el chat, como hiciste con el mapa.
+                    Con el repo ya <b>público</b>, leo cada archivo por su URL directa de GitHub
+                    (<span className="font-mono text-[10.5px]">raw.githubusercontent.com/cadaidea/blthm/main/bletia/…</span>) —
+                    el repo <b>cadaidea/blthm</b> ya está verificado. Si la lectura se satura, pégame el contenido del service aquí en el chat.
                   </div>
                 </div>
                 <div className="rounded-lg border border-brick/30 bg-brickl/50 p-3">
@@ -331,7 +360,7 @@ export default function Seguridad() {
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-line">
                     <span className="text-[11px] text-fog">Empieza por los 🔴: 2 archivos bastan para afinar el núcleo.</span>
-                    <Btn size="sm" variant="outline" icon="copy" onClick={async () => { await copyText("bletia_pudo/app/Services/EstadoPedidoErp.php"); toast("Ruta copiada — pégala en tu explorador de archivos"); }}>copiar ruta</Btn>
+                    <Btn size="sm" variant="outline" icon="copy" onClick={async () => { await copyText("bletia/app/Services/EstadoPedidoErp.php"); toast("Ruta copiada — ábrela en el repo y pégame el contenido"); }}>copiar ruta</Btn>
                   </div>
                 </div>
               </div>

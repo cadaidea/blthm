@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { buildOrder, buildPayLink, orderFlow, useStore } from "../lib/store";
+import { buildOrder, buildPayLink, estadosCliente, estadosLabel, orderFlow, useStore } from "../lib/store";
 import type { Channel, Movement, Order, OrderKind, OrderStatus, Warehouse } from "../lib/types";
 import { calcTotals, copyText, fmtDate, money, timeAgo, uid } from "../lib/util";
 import { Badge, Btn, Card, Drawer, EmptyState, Field, Icon, Input, Modal, SectionTitle, Select, Tabs, Td, Th } from "../components/ui";
 import { Thumb } from "../components/Img";
 
 const orderTone: Record<OrderStatus, "pine" | "oak" | "steel" | "moss" | "brick" | "fog"> = {
-  pendiente: "fog", por_aprobar: "oak", aprobado: "pine", fabricacion: "oak", en_bodega: "steel",
-  listo_despacho: "steel", despachado: "oak", entregado: "pine", anulado: "brick", cancelado: "brick",
+  borrador: "fog", pendiente: "fog", por_aprobar: "oak", aprobado: "pine", confirmado: "pine",
+  enviado_proveedor: "oak", en_fabricacion: "oak", en_produccion: "oak", listo_proveedor: "steel",
+  en_bodega: "steel", listo_despacho: "steel", despachado: "oak", entregado: "pine",
+  anulado: "brick", cancelado: "brick",
 };
 
 const WH_LABEL: Record<Warehouse, string> = { showroom: "Showroom", bodega: "Bodega", taller: "Taller" };
@@ -140,12 +142,12 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
 
       {tab === "pedidos" && (
         <>
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 stagger">
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 stagger">
             {pipeline.map(({ st, n }) => (
               <button key={st} onClick={() => setStatusF(statusF === st ? null : st)}
-                className={`bg-card border rounded-xl px-2.5 py-2.5 text-left hover:-translate-y-px transition-all ${statusF === st ? "border-pine ring-2 ring-pine/20 shadow-md" : "border-line hover:border-pine/40"}`}>
-                <div className="font-display font-extrabold text-[19px] text-ink num leading-none">{n}</div>
-                <div className="mt-1.5"><Badge tone={orderTone[st]} dot>{st.replace("_", " ")}</Badge></div>
+                className={`bg-card border rounded-xl px-2 py-2.5 text-left hover:-translate-y-px transition-all ${statusF === st ? "border-pine ring-2 ring-pine/20 shadow-md" : "border-line hover:border-pine/40"}`}>
+                <div className="font-display font-extrabold text-[18px] text-ink num leading-none">{n}</div>
+                <div className="mt-1.5"><Badge tone={orderTone[st]} dot>{estadosLabel[st]}</Badge></div>
               </button>
             ))}
           </div>
@@ -191,7 +193,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                         </Td>
                         <Td className="text-mut">{o.items.length} línea{o.items.length > 1 ? "s" : ""}</Td>
                         <Td right className="font-mono text-[12.5px] font-semibold text-ink num">{money(o.total)}</Td>
-                        <Td><Badge tone={orderTone[o.status]} dot>{o.status.replace("_", " ")}</Badge></Td>
+                        <Td><Badge tone={orderTone[o.status]} dot>{estadosLabel[o.status]}</Badge></Td>
                         <Td><Badge tone={o.payment === "pagado" ? "moss" : o.payment === "parcial" ? "oak" : "fog"}>{o.payment}</Badge></Td>
                         <Td className="text-mut capitalize">{o.channel.replace("_", " ")}</Td>
                         <Td right>
@@ -281,11 +283,15 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
           return (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={orderTone[cur.status]} dot>{cur.status.replace("_", " ")}</Badge>
+                <Badge tone={orderTone[cur.status]} dot>{estadosLabel[cur.status]}</Badge>
                 <Badge tone={cur.payment === "pagado" ? "moss" : cur.payment === "parcial" ? "oak" : "fog"}>{cur.payment}</Badge>
                 <Badge tone="fog">{cur.channel.replace("_", " ")}</Badge>
                 <Badge tone="steel">{cur.bultos} bultos</Badge>
                 <span className="ml-auto font-display font-extrabold text-[22px] text-ink num">{money(cur.total)}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-steell/60 border border-steel/20 px-3 py-2">
+                <Icon name="eye" size={14} className="text-steel" />
+                <span className="text-[12px] text-steel">El cliente ve: <b className="font-semibold">{estadosCliente[cur.status]}</b> <span className="text-steel/70">· vía link de seguimiento</span></span>
               </div>
 
               <div className="flex gap-1 bg-ink/5 rounded-lg p-1">
@@ -323,7 +329,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                   <div className="flex flex-wrap gap-2">
                     {next && !["anulado", "cancelado"].includes(cur.status) && (
                       <Btn icon="arrow" onClick={() => advance(cur)} className="flex-1">
-                        {next === "entregado" ? "Confirmar entrega" : `Avanzar → ${next.replace("_", " ")}`}
+                        {next === "entregado" ? "Confirmar entrega" : `Avanzar → ${estadosLabel[next]}`}
                       </Btn>
                     )}
                     {!["anulado", "cancelado", "entregado"].includes(cur.status) && (

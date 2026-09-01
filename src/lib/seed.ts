@@ -61,7 +61,7 @@ export const seedState = (): AppState => ({
           fotos: [{ campo: "Tapiz principal", label: "lino-crudo-T04.jpg" }, { campo: "Lacado", label: "muestra-mate-poro.jpg" }],
         },
       }],
-      subtotal: 2378, iva: 356.7, total: 2734.7, status: "fabricacion", channel: "web", payment: "parcial",
+      subtotal: 2378, iva: 356.7, total: 2734.7, status: "en_produccion", channel: "web", payment: "parcial",
       transportId: null, bultos: 10, createdAt: daysAgoIso(6, 9), eta: inDaysIso(9), city: "Cuenca", workOrderId: "w1",
       trace: [tr(6, 9, "Paola C.", "Pedido bajo specs creado · canal web"), tr(6, 10, "sistema", "Link único de confirmación (con fotos) enviado al cliente"), tr(5, 17, "cliente", "Cliente confirmó specs y fotos del link único"), tr(5, 9, "Luis Ch.", "Recibo REC-0402 · anticipo 50% por transferencia"), tr(4, 8, "Diego G.", "Inició fabricación · OF-2101")],
       recibos: [{ id: "r2", code: "REC-0402", date: daysAgoIso(5, 9), amount: 1367.35, method: "Transferencia Bco. Pichincha", note: "Anticipo 50%" }],

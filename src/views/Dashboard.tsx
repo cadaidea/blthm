@@ -86,7 +86,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
       {/* KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 stagger">
         <Stat label="Ventas de hoy" value={money(state.session.salesToday)} flash={salesFlash} icon="tag" tone="pine" sub={<span className="text-moss font-semibold">▲ en vivo vía bus de eventos</span>} />
-        <Stat label="Pedidos abiertos" value={num(openOrders.length)} icon="truck" tone="steel" sub={`${openOrders.filter((o) => o.status === "fabricacion").length} en taller · ${openOrders.filter((o) => o.status === "despachado").length} en ruta`} />
+        <Stat label="Pedidos abiertos" value={num(openOrders.length)} icon="truck" tone="steel" sub={`${openOrders.filter((o) => ["en_fabricacion", "en_produccion", "enviado_proveedor"].includes(o.status)).length} en fabricación · ${openOrders.filter((o) => o.status === "despachado").length} en ruta`} />
         <Stat label="Por cobrar" value={money(porCobrar)} icon="clock" tone="oak" sub={`${state.orders.filter((o) => o.payment !== "pagado" && o.status !== "anulado").length} facturas pendientes`} />
         <Stat label="Órdenes de taller" value={num(woActive.length)} icon="saw" tone="moss" sub={`avance medio ${Math.round(woActive.reduce((a, w) => a + w.progress, 0) / Math.max(1, woActive.length))}%`} />
       </div>
