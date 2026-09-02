@@ -31,9 +31,7 @@
   --color-night2: #122420;
 }
 
-html {
-  font-family: var(--font-body);
-}
+html { font-family: var(--font-body); }
 
 body {
   background-color: var(--color-paper);
@@ -41,7 +39,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ambient layered background: dot grid + two soft workshop glows */
 body::before {
   content: "";
   position: fixed;
@@ -62,22 +59,11 @@ body::after {
     radial-gradient(700px 700px at 85% 110%, rgba(56, 100, 126, 0.1), transparent 60%);
 }
 
-::selection {
-  background: rgba(25, 96, 79, 0.22);
-}
+::selection { background: rgba(25, 96, 79, 0.22); }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #b9c4b6 transparent;
-}
-*::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-*::-webkit-scrollbar-thumb {
-  background: #b9c4b6;
-  border-radius: 9px;
-}
+* { scrollbar-width: thin; scrollbar-color: #b9c4b6 transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: #b9c4b6; border-radius: 9px; }
 
 @keyframes feedIn {
   from { opacity: 0; transform: translateY(-7px) scale(0.99); }
