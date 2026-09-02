@@ -70,8 +70,8 @@ export function Btn({ variant = "primary", size = "md", icon, className, childre
       className={cls(
         "inline-flex items-center justify-center gap-1.5 font-semibold rounded-lg transition-all duration-150 active:scale-[0.97] disabled:opacity-45 disabled:pointer-events-none whitespace-nowrap",
         size === "sm" ? "text-[11.5px] px-2.5 py-1.5" : "text-[12.5px] px-3.5 py-2",
-        variant === "primary" && "bg-pine text-paper hover:bg-pined shadow-sm hover:shadow-md",
-        variant === "outline" && "bg-card border border-line2 text-ink hover:border-pine/60 hover:text-pined hover:bg-pinel/40",
+        variant === "primary" && "bg-ink text-paper hover:bg-ink3 shadow-sm hover:shadow-md",
+        variant === "outline" && "bg-card border border-line2 text-ink hover:border-ink/50 hover:bg-ink/4",
         variant === "ghost" && "text-mut hover:bg-ink/6 hover:text-ink",
         variant === "danger" && "bg-brick text-paper hover:bg-[#963823]",
         variant === "oak" && "bg-oak text-paper hover:bg-oakd shadow-sm",

@@ -159,8 +159,20 @@ export interface Settings {
   sequence: { invoice: number; order: number; link: number; recibo: number; despacho: number; guia: number; nc: number };
 }
 
+/* Roles internos — acceso al /dash por rol (admin ve todo) */
+export type RoleInterno = "gerencia" | "vendedor" | "bodega" | "taller" | "contabilidad";
+
+export interface SessionUser { name: string; role: RoleInterno; }
+
+/* Cuenta de consumidor final (www.bletia.ec/cuenta) */
+export interface Cuenta {
+  id: string; nombre: string; email: string; ciudad: string;
+  desde: string; cupon: string | null;
+}
+
 export interface SessionInfo {
   events: number; salesToday: number; peakEps: number; startedAt: number;
+  user: SessionUser | null;
 }
 
 export interface AppState {
@@ -182,6 +194,7 @@ export interface AppState {
   boms: Bom[];
   events: EventItem[];
   team: TeamMember[];
+  cuentas: Cuenta[];
   settings: Settings;
   session: SessionInfo;
 }

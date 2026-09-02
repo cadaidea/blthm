@@ -4,7 +4,7 @@ import type { AppState, Channel, EventItem, Invoice, JournalEntry, Order, OrderK
 import { seedState } from "./seed";
 import { calcTotals, money, sriAuth, token, uid } from "./util";
 
-const LS_KEY = "taller-uno-v3";
+const LS_KEY = "bletia-suite-v1";
 
 type Action = { type: string; [k: string]: any };
 
@@ -333,6 +333,12 @@ function reduce(s: AppState, a: Action): AppState {
         events: [mkEvent("factura", `Nota de crédito ${number} emitida · anula ${inv.number} · ${a.motivo}`), ...s.events].slice(0, 90),
       };
     }
+    case "LOGIN":
+      return { ...s, session: { ...s.session, user: { name: a.name, role: a.role } } };
+    case "LOGOUT":
+      return { ...s, session: { ...s.session, user: null } };
+    case "ADD_CUENTA":
+      return { ...s, cuentas: [a.cuenta, ...s.cuentas] };
     case "SETTINGS":
       return { ...s, settings: { ...s.settings, ...a.patch } };
     case "UPLOAD_MEDIA":

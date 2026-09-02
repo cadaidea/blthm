@@ -252,10 +252,14 @@ export const seedState = (): AppState => ({
     { id: "t5", name: "Diego Guamán", role: "taller", email: "taller@andinahogar.ec", online: true, lastActive: "hace 12min" },
   ],
   settings: {
-    company: { name: "Andina Madera & Hogar S.A.", ruc: "1792345678001", address: "Av. Eloy Alfaro N34-211 y Rusia, Quito", phone: "02 245 8890", email: "hola@andinahogar.ec" },
+    company: { name: "BLETIA", ruc: "1792345678001", address: "Calle Larga 1-20 y Av. Solano, Cuenca", phone: "07 284 5511", email: "hola@bletia.ec" },
     payphone: { mode: "sandbox", shopId: "SHP-EC-0042", terminalId: "TRM-01", token: "sbx_7f3Kp92MzQ81xVc4" },
     linkBase: "https://pagos.andinahogar.ec/lnk",
     sequence: { invoice: 232, order: 1046, link: 128, recibo: 408, despacho: 3022, guia: 57, nc: 13 },
   },
-  session: { events: 5, salesToday: 5092.2, peakEps: 0, startedAt: Date.now() },
+  cuentas: [
+    { id: "cu1", nombre: "María Fernanda Icaza", email: "mficaza@gmail.com", ciudad: "Quito", desde: daysAgoIso(400), cupon: "5% dcto primera compra" },
+    { id: "cu2", nombre: "Hotel Plaza Grande Suites", email: "ffurnish@plazagrande.ec", ciudad: "Quito", desde: daysAgoIso(320), cupon: null },
+  ],
+  session: { events: 5, salesToday: 5092.2, peakEps: 0, startedAt: Date.now(), user: null },
 });

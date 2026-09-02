@@ -68,7 +68,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4 anim-up">
         <div>
-          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">Buenos días, Andrés — {fmtDate(new Date().toISOString())}</div>
+          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">Hola, {state.session.user?.name?.split(" ")[0] ?? "equipo"} — {fmtDate(new Date().toISOString())}</div>
           <h1 className="font-display font-extrabold text-[30px] leading-tight text-ink mt-1">
             El taller factura <span className="text-pine">{money(state.session.salesToday, false)}</span> hoy
           </h1>

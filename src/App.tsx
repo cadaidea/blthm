@@ -17,6 +17,7 @@ import Accesos from "./views/Accesos";
 import Seguridad from "./views/Seguridad";
 import Ajustes from "./views/Ajustes";
 import Sitio from "./views/Sitio";
+import Login from "./views/Login";
 
 function Splash({ done }: { done: boolean }) {
   return (
@@ -37,7 +38,7 @@ function Splash({ done }: { done: boolean }) {
 }
 
 function Workspace() {
-  const { toasts } = useStore();
+  const { toasts, state } = useStore();
   const [view, setView] = useState<View>("dashboard");
   const [param, setParam] = useState<string | undefined>();
   const [visit, setVisit] = useState(0);
@@ -54,6 +55,18 @@ function Workspace() {
     setVisit((x) => x + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  /* bletia.ec/dash → sin sesión, /dash/login */
+  const user = state.session.user;
+  if (view !== "web" && !user) {
+    return (
+      <>
+        <Splash done={ready} />
+        <Login nav={nav} />
+        <ToastHost toasts={toasts} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -72,7 +85,7 @@ function Workspace() {
         {view === "accesos" && <Accesos key={`s${visit}`} />}
         {view === "seguridad" && <Seguridad key={`g${visit}`} />}
         {view === "ajustes" && <Ajustes key={`j${visit}`} />}
-        {view === "web" && <Sitio key={`w${visit}`} />}
+        {view === "web" && <Sitio key={`w${visit}`} nav={nav} />}
       </Shell>
       <ToastHost toasts={toasts} />
     </>

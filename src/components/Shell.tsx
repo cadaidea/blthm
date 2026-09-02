@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "../lib/store";
-import type { View } from "../lib/types";
+import type { RoleInterno, View } from "../lib/types";
 import { cls, num } from "../lib/util";
 import { Icon } from "./ui";
 
@@ -24,10 +24,6 @@ const NAV: { group: string; items: { id: View; label: string; icon: string }[] }
     ],
   },
   {
-    group: "Canal digital",
-    items: [{ id: "web", label: "Web pública · Tienda & Blog", icon: "ext" }],
-  },
-  {
     group: "Producto & activos",
     items: [
       { id: "pim", label: "Productos · PIM", icon: "box" },
@@ -46,87 +42,121 @@ const NAV: { group: string; items: { id: View; label: string; icon: string }[] }
       { id: "ajustes", label: "Ajustes & despliegue", icon: "gear" },
     ],
   },
+  {
+    group: "Canal digital",
+    items: [{ id: "web", label: "Sitio público", icon: "ext" }],
+  },
 ];
 
+/* Acceso por rol — igual que el /dash de upgrade.bletia.ec: cada colaborador ve solo su área, gerencia todo */
+export const ROLE_ACCESS: Record<RoleInterno, View[]> = {
+  gerencia: ["dashboard", "oms", "logistica", "taller", "bom", "crm", "cobros", "pim", "dam", "contabilidad", "accesos", "seguridad", "ajustes", "web"],
+  vendedor: ["dashboard", "oms", "pim", "crm", "cobros", "web"],
+  bodega: ["dashboard", "oms", "logistica", "pim", "bom"],
+  taller: ["dashboard", "taller", "bom", "logistica", "pim"],
+  contabilidad: ["dashboard", "contabilidad", "cobros", "crm"],
+};
+
+const ROLE_LABEL: Record<RoleInterno, string> = {
+  gerencia: "Gerencia · admin", vendedor: "Ventas", bodega: "Bodega", taller: "Taller", contabilidad: "Contabilidad",
+};
+
 export function Shell({ view, nav, children }: { view: View; nav: (v: View, p?: string) => void; children: ReactNode }) {
-  const { state } = useStore();
+  const { state, dispatch, toast } = useStore();
   const [q, setQ] = useState("");
+  const user = state.session.user;
+  const access = user ? ROLE_ACCESS[user.role] : [];
   const eps = Math.max(state.session.peakEps, 1);
 
+  const logout = () => {
+    dispatch({ type: "LOGOUT" });
+    toast("Sesión cerrada · vuelta a /dash/login", "info");
+  };
+
   return (
-    <div className="min-h-screen lg:pl-[232px]">
-      {/* sidebar */}
-      <aside className="fixed inset-y-0 left-0 w-[232px] bg-night text-paper/85 flex flex-col z-40 max-lg:hidden">
-        <button onClick={() => nav("dashboard")} className="flex items-center gap-2.5 px-4 h-14 border-b border-paper/8 text-left hover:bg-paper/4 transition-colors">
-          <span className="w-8 h-8 rounded-lg bg-pined text-oakl grid place-items-center"><Icon name="logo" size={17} /></span>
-          <span>
-            <span className="block font-display font-extrabold text-[14.5px] text-paper tracking-wide leading-none">TALLER UNO</span>
-            <span className="block font-mono text-[8.5px] tracking-[0.24em] text-paper/35 uppercase mt-1">Suite mueblera EC</span>
-          </span>
+    <div className="min-h-screen lg:pl-[236px]">
+      {/* sidebar — hueso, sin fatiga visual */}
+      <aside className="fixed inset-y-0 left-0 w-[236px] bg-[#f7f3eb] border-r border-line flex flex-col z-40 max-lg:hidden">
+        <button onClick={() => nav("dashboard")} className="flex items-center gap-3 px-5 h-16 border-b border-line text-left hover:bg-ink/3 transition-colors">
+          <span className="font-display font-bold text-[19px] tracking-[0.3em] text-ink">BLETIA</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-wine mt-1.5" />
+          <span className="ml-auto font-mono text-[8.5px] uppercase tracking-[0.18em] text-fog">suite interna</span>
         </button>
-        <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-4">
-          {NAV.map((g) => (
-            <div key={g.group}>
-              <div className="font-mono text-[8.5px] uppercase tracking-[0.22em] text-paper/30 px-2 mb-1.5">{g.group}</div>
-              {g.items.map((it) => (
-                <button key={it.id} onClick={() => nav(it.id)}
-                  className={cls(
-                    "w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12.5px] font-medium transition-all mb-0.5 text-left",
-                    view === it.id ? "bg-pined text-paper shadow-sm" : "text-paper/60 hover:text-paper hover:bg-paper/6"
-                  )}>
-                  <Icon name={it.icon} size={15} className={view === it.id ? "text-oakl" : ""} />
-                  {it.label}
-                  {view === it.id && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-oak" />}
-                </button>
-              ))}
-            </div>
-          ))}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+          {NAV.map((g) => {
+            const items = g.items.filter((it) => access.includes(it.id));
+            if (!items.length) return null;
+            return (
+              <div key={g.group}>
+                <div className="font-mono text-[8.5px] uppercase tracking-[0.22em] text-fog px-2.5 mb-1.5">{g.group}</div>
+                {items.map((it) => (
+                  <button key={it.id} onClick={() => nav(it.id)}
+                    className={cls(
+                      "w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12.5px] font-medium transition-all mb-0.5 text-left",
+                      view === it.id ? "bg-ink text-paper shadow-sm" : "text-mut hover:text-ink hover:bg-ink/5"
+                    )}>
+                    <Icon name={it.icon} size={15} className={view === it.id ? "text-oakl" : ""} />
+                    {it.label}
+                    {view === it.id && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-wine" />}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
-        <div className="px-4 py-3 border-t border-paper/8">
-          <div className="flex items-center gap-2 text-[10.5px] text-paper/50">
-            <span className="w-2 h-2 rounded-full bg-moss live-dot" />
-            VPS OVH · bus activo · <span className="font-mono num">{num(eps)} ev/s</span>
+        {user && (
+          <div className="px-3 py-3 border-t border-line">
+            <div className="flex items-center gap-2.5 rounded-xl bg-card border border-line px-3 py-2.5">
+              <span className="w-8 h-8 rounded-lg bg-ink text-paper grid place-items-center font-display font-bold text-[12px] shrink-0">
+                {user.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-semibold text-ink leading-tight truncate">{user.name}</div>
+                <div className="text-[10px] text-wine font-bold uppercase tracking-wider">{ROLE_LABEL[user.role]}</div>
+              </div>
+              <button onClick={logout} title="Cerrar sesión" className="text-fog hover:text-brick transition-colors"><Icon name="x" size={14} /></button>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 px-1 text-[9.5px] font-mono text-fog">
+              <span className="w-1.5 h-1.5 rounded-full bg-moss live-dot" /> bus activo · <span className="num">{num(eps)}</span> ev/s · PostgreSQL 16
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* topbar */}
-      <header className="sticky top-0 z-30 h-14 bg-paper/85 backdrop-blur border-b border-line flex items-center gap-3 px-4 lg:px-6">
-        <span className="lg:hidden w-8 h-8 rounded-lg bg-pined text-oakl grid place-items-center"><Icon name="logo" size={16} /></span>
-        <div className="relative flex-1 max-w-sm">
+      <header className="sticky top-0 z-30 h-14 bg-paper/88 backdrop-blur border-b border-line flex items-center gap-3 px-4 lg:px-6">
+        <button onClick={() => nav("web")} className="lg:hidden font-display font-bold text-[16px] tracking-[0.25em] text-ink">BLETIA</button>
+        <div className="relative flex-1 max-w-sm max-lg:hidden">
           <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fog" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && q.trim()) {
-                nav("pim", q.trim());
-                setQ("");
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter" && q.trim() && access.includes("pim")) { nav("pim", q.trim()); setQ(""); } }}
             placeholder="Buscar SKU, producto… (Enter)"
-            className="w-full bg-card border border-line rounded-lg pl-8 pr-3 py-1.5 text-[12.5px] outline-none focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all"
+            className="w-full bg-card border border-line rounded-lg pl-8 pr-3 py-1.5 text-[12.5px] outline-none focus:border-ink/50 focus:ring-2 focus:ring-ink/8 transition-all"
           />
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2.5">
           <div className="hidden md:flex items-center gap-1.5 font-mono text-[10.5px] text-mut bg-card border border-line rounded-lg px-2.5 py-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-moss live-dot" />
             <span className="num">{num(state.session.events)}</span> eventos
           </div>
+          <button onClick={() => nav("web")} className="flex items-center gap-1.5 text-[11.5px] font-bold text-mut hover:text-ink border border-line bg-card rounded-lg px-3 py-1.5 transition-all hover:border-ink/40">
+            <Icon name="ext" size={12} /> bletia.ec
+          </button>
           <div className="hidden sm:block text-right leading-tight">
             <div className="text-[11.5px] font-bold text-ink">{state.settings.company.name}</div>
-            <div className="font-mono text-[9.5px] text-fog">RUC {state.settings.company.ruc}</div>
+            <div className="font-mono text-[9px] text-fog">RUC {state.settings.company.ruc} · Cuenca</div>
           </div>
-          <span className="w-8 h-8 rounded-lg bg-ink text-paper grid place-items-center font-display font-bold text-[11px]">AY</span>
         </div>
       </header>
 
       {/* nav móvil */}
-      <div className="lg:hidden sticky top-14 z-20 bg-paper/90 backdrop-blur border-b border-line px-3 py-2 flex gap-1.5 overflow-x-auto">
-        {NAV.flatMap((g) => g.items).map((it) => (
+      <div className="lg:hidden sticky top-14 z-20 bg-paper/92 backdrop-blur border-b border-line px-3 py-2 flex gap-1.5 overflow-x-auto">
+        {NAV.flatMap((g) => g.items).filter((it) => access.includes(it.id)).map((it) => (
           <button key={it.id} onClick={() => nav(it.id)}
             className={cls("flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all",
-              view === it.id ? "bg-pined text-paper" : "bg-card border border-line text-mut")}>
+              view === it.id ? "bg-ink text-paper" : "bg-card border border-line text-mut")}>
             <Icon name={it.icon} size={12} />{it.label}
           </button>
         ))}
@@ -136,9 +166,9 @@ export function Shell({ view, nav, children }: { view: View; nav: (v: View, p?: 
 
       <footer className="px-4 lg:px-6 pb-6 max-w-[1480px] mx-auto">
         <div className="border-t border-line pt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-fog font-mono">
-          <span>TALLER UNO v2.1 · puerto de BLETIA (upgrade.bletia.ec)</span>
-          <span>stack 100% open source</span>
-          <span className="ml-auto">datos demo · PostgreSQL 16 en producción</span>
+          <span>BLETIA suite v2.2 · puerto del ERP de upgrade.bletia.ec</span>
+          <span>hecho en Cuenca</span>
+          <span className="ml-auto">demo · PostgreSQL 16 en producción</span>
         </div>
       </footer>
     </div>
