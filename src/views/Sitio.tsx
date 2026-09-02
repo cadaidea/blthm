@@ -16,20 +16,34 @@ const IMG = {
   poltrona: "https://image.qwenlm.ai/generated-images/087283f8-cf51-449d-9d01-520b4731854c/_result.png",
 };
 
-interface Pub { id: string; nombre: string; precio: number; cat: string; img: string; frase?: string; }
+const TAPIZ = [
+  { n: "Lino crudo", c: "#d9cbb0" },
+  { n: "Bouclé marfil", c: "#efe8da" },
+  { n: "Chenille gris", c: "#b3ada3" },
+  { n: "Terciopelo verde", c: "#3f5d50" },
+  { n: "Cuero coñac", c: "#a06a3c" },
+];
+const MADERA = [
+  { n: "Roble natural", c: "#c7a472" },
+  { n: "Nogal", c: "#7b5233" },
+  { n: "Cerezo", c: "#9a5b40" },
+  { n: "Ébano", c: "#3b332c" },
+];
+
+interface Pub { id: string; nombre: string; precio: number; cat: string; img: string; vt: string; vars: { n: string; c: string }[]; }
 const PUB: Pub[] = [
-  { id: "sofa-bletia", nombre: "Sofá Bletia", precio: 1299, cat: "Sofás", img: IMG.sofa, frase: "El clásico de la casa, hecho a mano en Cuenca" },
-  { id: "sofa-miro-studio", nombre: "Sofá Miro Studio", precio: 829, cat: "Sofás", img: "", frase: "Linealmente cómodo para ideas brillantes" },
-  { id: "sofa-dela-forma", nombre: "Sofá Dela Forma", precio: 1309, cat: "Sofás", img: "", frase: "Formas que abrazan la sala entera" },
-  { id: "sofa-baal-studio", nombre: "Sofá Baal Studio", precio: 699, cat: "Sofás", img: "", frase: "Compacto por fuera, generoso por dentro" },
-  { id: "sillon-zoe", nombre: "Sillón Zoe", precio: 349, cat: "Sillones", img: IMG.poltrona, frase: "Gira con tu conversación" },
-  { id: "mesa-noche-lupe", nombre: "Mesa de noche Lupe", precio: 339, cat: "Veladores", img: IMG.cama, frase: "Silenciosa, como debe ser la noche" },
-  { id: "mesa-noche-lira", nombre: "Mesa de noche Lira", precio: 289, cat: "Veladores", img: "", frase: "Una línea fina entre el sueño y el día" },
-  { id: "comedor-andino", nombre: "Comedor Andino", precio: 1189, cat: "Centros", img: IMG.comedor, frase: "Roble nacional para sobremesas largas" },
-  { id: "cama-king-nordica", nombre: "Cama King Nórdica", precio: 699, cat: "Piezas", img: IMG.cama, frase: "Dormir también es un oficio" },
-  { id: "ropero-amazonia", nombre: "Ropero Amazonia", precio: 789, cat: "Piezas", img: IMG.ropero, frase: "Seis puertas, cero ruido" },
-  { id: "escritorio-canar", nombre: "Escritorio Cañar", precio: 459, cat: "Centros", img: IMG.escritorio, frase: "Para ideas que necesitan nogal" },
-  { id: "marco-pino-a5", nombre: "Marco Pino A5", precio: 11.99, cat: "Piezas", img: "", frase: "Un detalle de taller para tu pared" },
+  { id: "sofa-bletia", nombre: "Sofá Bletia", precio: 1299, cat: "Sofás", img: IMG.sofa, vt: "Tapiz", vars: TAPIZ },
+  { id: "sofa-miro-studio", nombre: "Sofá Miro Studio", precio: 829, cat: "Sofás", img: "", vt: "Tapiz", vars: TAPIZ },
+  { id: "sofa-dela-forma", nombre: "Sofá Dela Forma", precio: 1309, cat: "Sofás", img: "", vt: "Tapiz", vars: TAPIZ },
+  { id: "sofa-baal-studio", nombre: "Sofá Baal Studio", precio: 699, cat: "Sofás", img: "", vt: "Tapiz", vars: TAPIZ },
+  { id: "sillon-zoe", nombre: "Sillón Zoe", precio: 349, cat: "Sillones", img: IMG.poltrona, vt: "Tapiz", vars: TAPIZ },
+  { id: "mesa-noche-lupe", nombre: "Mesa de noche Lupe", precio: 339, cat: "Veladores", img: IMG.cama, vt: "Acabado", vars: MADERA },
+  { id: "mesa-noche-lira", nombre: "Mesa de noche Lira", precio: 289, cat: "Veladores", img: "", vt: "Acabado", vars: MADERA },
+  { id: "comedor-andino", nombre: "Comedor Andino", precio: 1189, cat: "Centros", img: IMG.comedor, vt: "Acabado", vars: MADERA },
+  { id: "cama-king-nordica", nombre: "Cama King Nórdica", precio: 699, cat: "Piezas", img: IMG.cama, vt: "Acabado", vars: MADERA },
+  { id: "ropero-amazonia", nombre: "Ropero Amazonia", precio: 789, cat: "Piezas", img: IMG.ropero, vt: "Acabado", vars: MADERA },
+  { id: "escritorio-canar", nombre: "Escritorio Cañar", precio: 459, cat: "Centros", img: IMG.escritorio, vt: "Acabado", vars: MADERA },
+  { id: "marco-pino-a5", nombre: "Marco Pino A5", precio: 11.99, cat: "Piezas", img: "", vt: "Acabado", vars: MADERA },
 ];
 const CATS = ["Sofás", "Sillones", "Piezas", "Centros", "Veladores"];
 
@@ -42,21 +56,15 @@ const DIARIO = [
   { id: "d6", cat: "Tips", titulo: "El color de tu sofá lo decide la luz, no la tendencia", min: 9, img: IMG.sofa, cuerpo: ["Luz norte (fría): los grises se vuelven azules; mejor cremas y camel.", "Luz sur (cálida en la Sierra): casi todo funciona; cuidado con los verdes que se vuelven oliva.", "Lleva la muestra y mírala a las 9h, 14h y 20h. Tres visitas, una decisión para diez años."], },
 ];
 
-type Sub = "home" | "tienda" | "journal" | "casa" | "cuenta" | "seguimiento";
+type Sub = "home" | "tienda" | "journal" | "casa" | "cuenta" | "seguimiento" | "producto";
 const CUENTA_KEY = "bletia-cuenta";
 
-const Label = ({ children, tone = "wine" }: { children: ReactNode; tone?: "wine" | "fog" | "paper" }) => (
-  <div className={`font-mono text-[10px] tracked uppercase ${tone === "wine" ? "text-wine" : tone === "paper" ? "text-paper/50" : "text-fog"}`}>{children}</div>
-);
-
-function SinImagen({ nombre, className }: { nombre: string; className?: string }) {
+function SinImagen({ className }: { nombre?: string; className?: string }) {
   return (
     <div className={`grid place-items-center bg-[#ece5d8] relative overflow-hidden ${className ?? ""}`}>
       <div className="text-center">
-        <div className="font-display font-semibold text-[30px] text-ink/25">B.</div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-ink/30 mt-1 px-6">sin imagen</div>
+        <div className="font-display font-semibold text-[40px] text-ink/20 leading-none">B.</div>
       </div>
-      <div className="absolute bottom-3 left-0 right-0 text-center font-display italic text-[13px] text-ink/40 px-4">{nombre}</div>
     </div>
   );
 }
@@ -65,8 +73,12 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
   const { state, dispatch, toast } = useStore();
   const [sub, setSub] = useState<Sub>("home");
   const [cat, setCat] = useState("Todas");
-  const [ficha, setFicha] = useState<Pub | null>(null);
-  const [qty, setQty] = useState(1);
+  const [prod, setProd] = useState<Pub | null>(null);
+  const [vari, setVari] = useState(0);
+  const [pqty, setPqty] = useState(1);
+  const [likes, setLikes] = useState<string[]>([]);
+  const abrirProducto = (p: Pub) => { setProd(p); setVari(0); setPqty(1); setSub("producto"); };
+  const toggleLike = (id: string) => setLikes((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const [cart, setCart] = useState<{ id: string; qty: number }[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -195,9 +207,6 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
               <Icon name="cart" size={18} />
               {cartCount > 0 && <span key={cartCount} className="anim-pop absolute -top-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-wine text-paper font-mono text-[9.5px] font-bold grid place-items-center num">{cartCount}</span>}
             </button>
-            <button onClick={() => nav("dashboard")} title="Acceso colaboradores" className="w-10 h-10 grid place-items-center rounded-full hover:bg-ink/6 transition-colors text-fog hover:text-ink">
-              <Icon name="key" size={16} />
-            </button>
           </div>
         </div>
         {/* nav móvil */}
@@ -217,9 +226,8 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
             <div className="absolute inset-0 bg-gradient-to-r from-night/55 via-night/10 to-transparent" />
             <div className="relative max-w-[1280px] mx-auto px-4 lg:px-8 h-full flex items-end pb-14">
               <div className="text-paper anim-rise max-w-xl">
-                <Label tone="paper">Muebles hechos en Cuenca</Label>
-                <h1 className="font-display font-medium text-[52px] lg:text-[76px] leading-[0.98] mt-3">
-                  Simple. Elegante. <em className="italic text-oakl">tu.</em>
+                <h1 className="font-display font-medium text-[52px] lg:text-[76px] leading-[0.98]">
+                  Simple. Elegante. <span className="text-oakl">tu.</span>
                 </h1>
                 <p className="text-[15px] text-paper/75 mt-4 max-w-sm leading-relaxed">Hacemos a mano para cuidar a detalle en cada pieza. Cada pieza define tu espacio.</p>
                 <div className="flex items-center gap-5 mt-7">
@@ -230,24 +238,10 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
             </div>
           </section>
 
-          {/* cinta de colección */}
-          <div className="border-y border-line bg-card overflow-hidden py-3">
-            <div className="ticker-track flex gap-10 whitespace-nowrap w-max font-display italic text-[17px] text-ink/60">
-              {[0, 1].map((k) => (
-                <div key={k} className="flex gap-10">
-                  {["Sofás", "Sillones", "Piezas", "Centros", "Veladores", "A medida", "Con color", "Un espacio"].map((w) => (
-                    <span key={w} className="flex items-center gap-10">{w}<span className="w-1.5 h-1.5 rounded-full bg-wine inline-block" /></span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* editorial: hechos en Cuenca */}
           <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-20 grid lg:grid-cols-2 gap-12 items-center">
             <div className="anim-up">
-              <Label>El taller</Label>
-              <h2 className="font-display font-medium text-[40px] lg:text-[50px] leading-[1.05] text-ink mt-3">Muebles hechos <em className="italic">en Cuenca</em></h2>
+              <h2 className="font-display font-medium text-[40px] lg:text-[50px] leading-[1.05] text-ink">Muebles hechos en Cuenca</h2>
               <p className="text-[15px] text-mut mt-5 leading-relaxed max-w-md">Es un espacio en donde cabe desde las ideas, el diseño y cada pieza convertida en realidad.</p>
               <div className="mt-8 divide-y divide-line border-y border-line max-w-md">
                 {[["01", "A medida", "Tus dimensiones, tu tapiz, tu lacado. Confirmas con fotos antes de fabricar."], ["02", "Con color", "Más de 40 telas y 12 acabados de madera para que la pieza sea tuya."], ["03", "Un espacio", "Del plano a la sala: asesoría en showroom o por videollamada."]].map(([n, t, d]) => (
@@ -261,8 +255,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
             <div className="relative">
               <Thumb src={IMG.poltrona} alt="Sillón Zoe" className="w-full h-[440px] rounded-sm" />
               <div className="absolute -bottom-5 -left-5 bg-night text-paper px-5 py-4 hidden md:block">
-                <div className="font-mono text-[9px] tracked uppercase text-paper/45">Desde el taller</div>
-                <div className="font-display italic text-[19px] mt-1">"La madera manda, nosotros escuchamos."</div>
+                <div className="font-display text-[19px]">La madera manda, nosotros escuchamos.</div>
               </div>
             </div>
           </section>
@@ -270,7 +263,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
           {/* colecciones */}
           <section className="max-w-[1280px] mx-auto px-4 lg:px-8 pb-20">
             <div className="flex items-end justify-between mb-7">
-              <div><Label>Colecciones</Label><h2 className="font-display font-medium text-[36px] text-ink mt-2">Explora por pieza</h2></div>
+              <div><h2 className="font-display font-medium text-[36px] text-ink">Explora por pieza</h2></div>
               <button onClick={() => setSub("tienda")} className="text-[12px] font-bold tracking-[0.14em] uppercase uline text-ink/70 hover:text-ink">Ver todo</button>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
@@ -294,11 +287,11 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
           <section className="bg-card border-y border-line py-20">
             <div className="max-w-[1280px] mx-auto px-4 lg:px-8">
               <div className="flex items-end justify-between mb-8">
-                <div><Label>Novedades</Label><h2 className="font-display font-medium text-[36px] text-ink mt-2">Recién salidas del taller</h2></div>
+                <div><h2 className="font-display font-medium text-[36px] text-ink">Recién salidas del taller</h2></div>
                 <button onClick={() => { setCat("Todas"); setSub("tienda"); }} className="text-[12px] font-bold tracking-[0.14em] uppercase uline text-ink/70 hover:text-ink">Ver todo</button>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10 stagger">
-                {PUB.slice(0, 8).map((p) => <CardProducto key={p.id} p={p} onOpen={() => { setFicha(p); setQty(1); }} onAdd={() => addCart(p, 1)} />)}
+                {PUB.slice(0, 8).map((p) => <CardProducto key={p.id} p={p} liked={likes.includes(p.id)} onLike={() => toggleLike(p.id)} onOpen={() => abrirProducto(p)} onAdd={() => addCart(p, 1)} />)}
               </div>
             </div>
           </section>
@@ -311,14 +304,12 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
                 <span className="absolute top-4 left-4 bg-wine text-paper font-mono text-[9.5px] tracked uppercase px-2.5 py-1">Destacado</span>
               </div>
               <div className="order-1 lg:order-2 anim-up">
-                <Label tone="paper">Pieza del mes</Label>
-                <h2 className="font-display font-medium text-[44px] lg:text-[54px] leading-[1.03] mt-3">Sofá Miro <em className="italic text-oakl">Studio</em></h2>
-                <p className="font-display italic text-[19px] text-paper/60 mt-3">"Linealmente cómodo para ideas brillantes."</p>
+                <h2 className="font-display font-medium text-[44px] lg:text-[54px] leading-[1.03]">Sofá Miro Studio</h2>
                 <div className="flex items-baseline gap-3 mt-6">
                   <span className="font-display font-semibold text-[32px] num">$829.00</span>
                   <span className="font-mono text-[10px] tracked uppercase text-paper/40">Incluido IVA</span>
                 </div>
-                <button onClick={() => { const p = PUB[1]; setFicha(p); setQty(1); }} className="mt-7 bg-paper text-night px-7 py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-oakl transition-colors">Descubrir</button>
+                <button onClick={() => abrirProducto(PUB[1])} className="mt-7 bg-paper text-night px-7 py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-oakl transition-colors">Descubrir</button>
               </div>
             </div>
           </section>
@@ -326,7 +317,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
           {/* diario */}
           <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-20">
             <div className="flex items-end justify-between mb-8">
-              <div><Label>Diario</Label><h2 className="font-display font-medium text-[36px] text-ink mt-2">Del taller a tu casa</h2></div>
+              <div><h2 className="font-display font-medium text-[36px] text-ink">Del taller a tu casa</h2></div>
               <button onClick={() => setSub("journal")} className="text-[12px] font-bold tracking-[0.14em] uppercase uline text-ink/70 hover:text-ink">Ver todos</button>
             </div>
             <div className="grid md:grid-cols-3 gap-6 stagger">
@@ -338,8 +329,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
           <section className="max-w-[1280px] mx-auto px-4 lg:px-8 pb-20">
             <div className="bg-winel border border-wine/15 px-6 lg:px-12 py-12 grid lg:grid-cols-2 gap-8 items-center">
               <div>
-                <Label>Únete a nosotros</Label>
-                <h3 className="font-display font-medium text-[32px] text-ink mt-2 leading-tight">Sé la primera persona en recibir <em className="italic">novedades de Bletia</em></h3>
+                <h3 className="font-display font-medium text-[32px] text-ink leading-tight">Sé la primera persona en recibir novedades de Bletia</h3>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input placeholder="Tu correo" className="flex-1 bg-paper border border-line2 rounded-sm px-4 py-3 text-[13.5px] outline-none focus:border-wine/50 transition-colors" />
@@ -355,8 +345,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
         <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-14">
           <div className="flex flex-wrap items-end justify-between gap-4 mb-8 anim-up">
             <div>
-              <Label>Colección 2026</Label>
-              <h1 className="font-display font-medium text-[46px] text-ink mt-2">Tienda</h1>
+              <h1 className="font-display font-medium text-[46px] text-ink">Tienda</h1>
             </div>
             <div className="flex flex-wrap gap-5">
               {["Todas", ...CATS].map((c) => (
@@ -365,7 +354,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
             </div>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10 stagger">
-            {productos.map((p) => <CardProducto key={p.id} p={p} onOpen={() => { setFicha(p); setQty(1); }} onAdd={() => addCart(p, 1)} />)}
+            {productos.map((p) => <CardProducto key={p.id} p={p} liked={likes.includes(p.id)} onLike={() => toggleLike(p.id)} onOpen={() => abrirProducto(p)} onAdd={() => addCart(p, 1)} />)}
           </div>
         </section>
       )}
@@ -373,7 +362,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
       {/* ═══ DIARIO ═══ */}
       {sub === "journal" && (
         <section className="max-w-[1100px] mx-auto px-4 lg:px-8 py-14">
-          <div className="anim-up mb-10"><Label>Diario</Label><h1 className="font-display font-medium text-[46px] text-ink mt-2">Historias de madera y tela</h1></div>
+          <div className="anim-up mb-10"><h1 className="font-display font-medium text-[46px] text-ink">Historias de madera y tela</h1></div>
           <div className="grid md:grid-cols-2 gap-x-8 gap-y-12 stagger">
             {DIARIO.map((a) => <TeaserDiario key={a.id} a={a} onOpen={() => setArtOpen(a)} grande />)}
           </div>
@@ -385,8 +374,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
         <section className="max-w-[1100px] mx-auto px-4 lg:px-8 py-14">
           <div className="grid lg:grid-cols-2 gap-12 items-start anim-up">
             <div>
-              <Label>La Casa</Label>
-              <h1 className="font-display font-medium text-[46px] text-ink mt-2 leading-tight">Un espacio para <em className="italic">las ideas</em></h1>
+              <h1 className="font-display font-medium text-[46px] text-ink leading-tight">Un espacio para las ideas</h1>
               <p className="text-[15px] text-mut mt-5 leading-relaxed">Es un espacio en donde cabe desde las ideas, el diseño y cada pieza convertida en realidad. Visítanos en Cuenca: el café lo ponemos nosotros, las medidas tú.</p>
               <div className="mt-8 space-y-3">
                 {[["Showroom", "Calle Larga 1-20 y Av. Solano, Cuenca"], ["Taller", "Panamericana Sur km 3, Cuenca — visitas con cita"], ["Horario", "Lun–Sáb · 09:30 a 18:30"], ["Contacto", "07 284 5511 · hola@bletia.ec"]].map(([t, d]) => (
@@ -400,7 +388,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
                 <div className="font-mono text-[9.5px] tracked uppercase text-paper/45">A medida — así funciona</div>
                 <div className="mt-4 space-y-3">
                   {[["Eliges la pieza", "Cualquier modelo de la colección se adapta."], ["Confirmas specs", "Tapiz, lacado y fotos vía un link único."], ["Fabricamos", "Sigue cada etapa desde tu cuenta."], ["Entregamos", "Guía de remisión SRI y armado incluido."]].map(([t, d], i) => (
-                    <div key={t} className="flex gap-3.5"><span className="font-display italic text-[20px] text-oakl w-6">{i + 1}</span><div><div className="text-[13.5px] font-semibold">{t}</div><div className="text-[12px] text-paper/55">{d}</div></div></div>
+                    <div key={t} className="flex gap-3.5"><span className="font-display font-semibold text-[19px] text-oakl w-6 num">{i + 1}</span><div><div className="text-[13.5px] font-semibold">{t}</div><div className="text-[12px] text-paper/55">{d}</div></div></div>
                   ))}
                 </div>
               </div>
@@ -413,8 +401,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
       {sub === "seguimiento" && (
         <section className="max-w-[640px] mx-auto px-4 py-14">
           <div className="text-center anim-up">
-            <Label>Seguimiento</Label>
-            <h1 className="font-display font-medium text-[42px] text-ink mt-2">¿Dónde está tu pieza?</h1>
+            <h1 className="font-display font-medium text-[42px] text-ink">¿Dónde está tu pieza?</h1>
             <p className="text-[13.5px] text-mut mt-2">Ingresa el código de tu pedido (lo recibiste por correo o WhatsApp).</p>
           </div>
           <div className="flex gap-2 mt-7">
@@ -466,14 +453,14 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
         <section className="max-w-[900px] mx-auto px-4 py-14">
           {!cuenta ? (
             <div className="text-center py-16 anim-up">
-              <div className="font-display font-medium text-[36px] text-ink">Tu espacio, <em className="italic">tu cuenta</em></div>
+              <div className="font-display font-medium text-[36px] text-ink">Tu espacio, tu cuenta</div>
               <p className="text-[14px] text-mut mt-3">Ingresa para ver tus pedidos, seguimientos y cupones.</p>
               <button onClick={abrirAuth} className="mt-6 bg-ink text-paper px-8 py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">Ingresar / crear cuenta</button>
             </div>
           ) : (
             <div className="anim-up">
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-5">
-                <div><Label>Mi cuenta</Label><h1 className="font-display font-medium text-[40px] text-ink mt-1">{miCuenta?.nombre ?? cuenta}</h1></div>
+                <div><h1 className="font-display font-medium text-[40px] text-ink">{miCuenta?.nombre ?? cuenta}</h1></div>
                 <button onClick={() => { localStorage.removeItem(CUENTA_KEY); setCuenta(null); toast("Sesión cerrada", "info"); }} className="text-[12px] font-semibold uppercase tracking-[0.12em] text-mut uline">Cerrar sesión</button>
               </div>
               <div className="grid md:grid-cols-3 gap-4 mt-7">
@@ -521,7 +508,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
         <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-14 grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
           <div>
             <div className="flex items-center gap-2.5"><span className="font-display font-bold text-[20px] tracking-[0.34em] text-paper">BLETIA</span><span className="w-1.5 h-1.5 rounded-full bg-wine mt-2" /></div>
-            <p className="font-display italic text-[17px] text-paper/50 mt-3">"Simple. Elegante. tu."</p>
+            <p className="text-[13px] text-paper/45 mt-3 tracking-wide">Simple. Elegante. tu.</p>
             <p className="text-[12px] mt-4 leading-relaxed max-w-xs">Muebles hechos en Cuenca, Ecuador. Taller propio desde hace 27 años · {state.settings.company.ruc}</p>
           </div>
           <div className="text-[12.5px] space-y-2.5">
@@ -536,7 +523,6 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
             <div className="font-mono text-[9.5px] tracked uppercase text-paper/35 mb-3">Cuenta</div>
             <button onClick={() => (cuenta ? setSub("cuenta") : abrirAuth())} className="block hover:text-oakl transition-colors">{cuenta ? "Mi cuenta" : "Ingresar"}</button>
             <button onClick={() => { setAuthTab("crear"); setTurn("idle"); setAuthOpen(true); }} className="block hover:text-oakl transition-colors">Crear cuenta</button>
-            <button onClick={() => nav("dashboard")} className="block hover:text-oakl transition-colors">Acceso colaboradores →</button>
             <div className="pt-3 flex gap-2"><Badge tone="oak">PayPhone</Badge><Badge tone="fog">SRI</Badge></div>
           </div>
         </div>
@@ -560,33 +546,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
         </div>
       )}
 
-      {/* ── ficha de producto ── */}
-      <Drawer open={!!ficha} onClose={() => setFicha(null)} kicker={`Colección · ${ficha?.cat ?? ""}`} title={ficha?.nombre ?? ""}>
-        {ficha && (
-          <div className="space-y-4">
-            {ficha.img ? <Thumb src={ficha.img} alt={ficha.nombre} className="w-full h-60" /> : <SinImagen nombre={ficha.nombre} className="w-full h-60" />}
-            {ficha.frase && <p className="font-display italic text-[19px] text-ink/75 leading-snug">"{ficha.frase}"</p>}
-            <div className="flex items-baseline gap-3">
-              <span className="font-display font-semibold text-[32px] num">{money(ficha.precio)}</span>
-              <span className="font-mono text-[10px] tracked uppercase text-fog">Incluido IVA</span>
-            </div>
-            <div className="border-y border-line py-3 text-[12.5px] text-mut space-y-1.5">
-              <div className="flex justify-between"><span>Origen</span><span className="text-ink font-semibold">Taller BLETIA · Cuenca</span></div>
-              <div className="flex justify-between"><span>Garantía</span><span className="text-ink font-semibold">5 años estructural</span></div>
-              <div className="flex justify-between"><span>Entrega</span><span className="text-ink font-semibold">7–21 días · armado incluido</span></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center border border-line2 rounded-sm overflow-hidden">
-                <button className="px-3.5 py-2.5 hover:bg-ink/5" onClick={() => setQty(Math.max(1, qty - 1))}><Icon name="minus" size={13} /></button>
-                <span className="px-4 font-mono num">{qty}</span>
-                <button className="px-3.5 py-2.5 hover:bg-ink/5" onClick={() => setQty(qty + 1)}><Icon name="plus" size={13} /></button>
-              </div>
-              <button onClick={() => { addCart(ficha, qty); setFicha(null); setCartOpen(true); }} className="flex-1 bg-ink text-paper py-3 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">Añadir · {money(ficha.precio * qty)}</button>
-            </div>
-            <p className="text-[11.5px] text-fog leading-relaxed">¿La quieres <b className="text-ink">a medida</b>? Al comprar te enviamos un link único para confirmar tapiz, lacado y fotos antes de fabricar.</p>
-          </div>
-        )}
-      </Drawer>
+
 
       {/* ── carrito ── */}
       <Drawer open={cartOpen} onClose={() => setCartOpen(false)} kicker={`Carrito · ${cartCount}`} title="Tu selección">
