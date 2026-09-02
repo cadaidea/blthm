@@ -24,6 +24,10 @@ const NAV: { group: string; items: { id: View; label: string; icon: string }[] }
     ],
   },
   {
+    group: "Canal digital",
+    items: [{ id: "web", label: "Web pública · Tienda & Blog", icon: "ext" }],
+  },
+  {
     group: "Producto & activos",
     items: [
       { id: "pim", label: "Productos · PIM", icon: "box" },

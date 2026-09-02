@@ -45,6 +45,9 @@ const P: Record<string, ReactNode> = {
   package: <><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9z" /><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M7.7 5.2l8.6 4.6" /></>,
   brush: <><path d="m14.5 4 5.5 5.5-8.5 8.5c-1.5 1.5-4 1.5-5.5 0s-1.5-4 0-5.5L14.5 4z" /><path d="m12 6.5 5.5 5.5M4.5 20.5c1.5 0 2.5-1 2.5-2.5" /></>,
   pin: <><path d="M12 21s-6.5-5.4-6.5-10.3A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.7C18.5 15.6 12 21 12 21z" /><circle cx="12" cy="10.5" r="2.2" /></>,
+  cart: <><circle cx="9" cy="20" r="1.4" /><circle cx="17.5" cy="20" r="1.4" /><path d="M3 3.5h2.2l2.3 11h10.6l2-7.5H6.3" /></>,
+  minus: <path d="M5.5 12h13" />,
+  edit: <><path d="M4 20h4.5L19 9.5a2 2 0 0 0 0-2.8l-1.7-1.7a2 2 0 0 0-2.8 0L4 15.5V20z" /><path d="m13.5 6 4.5 4.5" /></>,
 };
 
 export function Icon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {

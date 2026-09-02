@@ -79,7 +79,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
         <div className="flex flex-wrap gap-2">
           <Btn variant="outline" icon="box" onClick={() => nav("oms", "stock")}>Vender stock</Btn>
           <Btn variant="outline" icon="saw" onClick={() => nav("oms", "pedido")}>Bajo pedido</Btn>
-          <Btn variant="dark" icon="ext" onClick={() => nav("oms", "online")}>Tomar online</Btn>
+          <Btn variant="dark" icon="ext" onClick={() => nav("web")}>Tienda web</Btn>
           <Btn icon="qr" onClick={() => nav("cobros")}>Cobrar con PayPhone</Btn>
         </div>
       </div>
