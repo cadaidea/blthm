@@ -95,7 +95,6 @@ function Workspace() {
         {view === "accesos" && <Accesos key={`s${visit}`} />}
         {view === "seguridad" && <Seguridad key={`g${visit}`} />}
         {view === "ajustes" && <Ajustes key={`j${visit}`} />}
-        {view === "web" && <Sitio key={`w${visit}`} nav={nav} />}
       </Shell>
       <ToastHost toasts={toasts} />
     </>

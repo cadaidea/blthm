@@ -156,12 +156,21 @@ export function Field({ label, children }: { label: string; children: ReactNode 
     </label>
   );
 }
+/* Si el caller pasa una clase de ancho/flex, se respeta y se quita el w-full base.
+   Corrige el bug donde el selector de ítem salía angosto y el número se estiraba. */
+const HAS_WIDTH = /(^|\s)(w-|min-w-|max-w-|flex-1|flex-auto|flex-none|grow|shrink)/;
+const mergeCls = (base: string, extra?: string) => {
+  if (!extra) return base;
+  const parts = base.split(/\s+/).filter((p) => !(HAS_WIDTH.test(extra) && p === "w-full"));
+  return [...parts, extra].join(" ");
+};
+
 export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cls("w-full bg-card border border-line2 rounded-lg px-3 py-2 text-[13px] text-ink placeholder:text-fog outline-none focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all", className)} {...rest} />;
+  return <input className={mergeCls("w-full bg-card border border-line2 rounded-lg px-3 py-2 text-[13px] text-ink placeholder:text-fog outline-none focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all", className)} {...rest} />;
 }
 export function Select({ className, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select className={cls("w-full bg-card border border-line2 rounded-lg px-2.5 py-2 text-[13px] text-ink outline-none focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all", className)} {...rest}>
+    <select className={mergeCls("w-full bg-card border border-line2 rounded-lg px-2.5 py-2 text-[13px] text-ink outline-none focus:border-pine focus:ring-2 focus:ring-pine/15 transition-all", className)} {...rest}>
       {children}
     </select>
   );
