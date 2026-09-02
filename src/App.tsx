@@ -68,6 +68,16 @@ function Workspace() {
     );
   }
 
+  /* www.bletia.ec → sitio público SIN el header/sidebar del panel interno */
+  if (view === "web") {
+    return (
+      <>
+        <Sitio key={`w${visit}`} nav={nav} />
+        <ToastHost toasts={toasts} />
+      </>
+    );
+  }
+
   return (
     <>
       <Splash done={ready} />

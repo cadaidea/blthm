@@ -1,11 +1,30 @@
 @import "tailwindcss";
 
+/* Geomanist — fuente oficial de BLETIA (con derechos).
+   Coloca tus archivos en /public/fonts/ : Geomanist-Regular.woff2, -Medium.woff2, -Bold.woff2 */
+@font-face {
+  font-family: "Geomanist";
+  src: local("Geomanist Regular"), local("Geomanist-Regular"), url("/fonts/Geomanist-Regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Geomanist";
+  src: local("Geomanist Medium"), local("Geomanist-Medium"), url("/fonts/Geomanist-Medium.woff2") format("woff2");
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Geomanist";
+  src: local("Geomanist Bold"), local("Geomanist-Bold"), url("/fonts/Geomanist-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
 @theme {
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font-body: "Jost", "Segoe UI", sans-serif;
+  --font-display: "Geomanist", "Jost", "Segoe UI", sans-serif;
+  --font-body: "Geomanist", "Jost", "Segoe UI", sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* base hueso/tinta — calma visual */
+  /* base hueso/tinta — calma visual (modo día) */
   --color-paper: #f2eee6;
   --color-card: #fbf8f2;
   --color-ink: #1d1712;
@@ -37,32 +56,31 @@
   --color-night2: #211b16;
 }
 
+/* Modo noche */
+.dark {
+  --color-paper: #171512;
+  --color-card: #201d18;
+  --color-ink: #efe9dd;
+  --color-ink2: #e4ddcf;
+  --color-ink3: #d6cdbb;
+  --color-mut: #a89f8f;
+  --color-fog: #7d7466;
+  --color-line: #322d25;
+  --color-line2: #3d372d;
+  --color-winel: #3a1f1f;
+  --color-pinel: #28312a;
+  --color-oakl: #38301f;
+  --color-steell: #26303a;
+  --color-brickl: #3a2520;
+  --color-mossl: #2e3524;
+}
+
 html { font-family: var(--font-body); }
 
 body {
   background-color: var(--color-paper);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image: radial-gradient(rgba(29, 23, 18, 0.06) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(880px 460px at -6% -8%, rgba(169, 120, 44, 0.1), transparent 60%),
-    radial-gradient(760px 480px at 106% 2%, rgba(128, 0, 0, 0.05), transparent 55%),
-    radial-gradient(760px 760px at 88% 112%, rgba(90, 115, 134, 0.07), transparent 60%);
 }
 
 ::selection { background: rgba(128, 0, 0, 0.16); }
@@ -80,8 +98,6 @@ body::after {
 @keyframes flashCell { 0% { background-color: rgba(169, 120, 44, 0.26); } 100% { background-color: transparent; } }
 @keyframes growBar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes drawLine { from { stroke-dashoffset: 900; } to { stroke-dashoffset: 0; } }
-@keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@keyframes shimmer { from { background-position: -400px 0; } to { background-position: 400px 0; } }
 @keyframes kenburns { from { transform: scale(1.02); } to { transform: scale(1.1); } }
 
 .anim-feed { animation: feedIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
@@ -94,8 +110,6 @@ body::after {
 .bar-grow { transform-origin: bottom; animation: growBar 0.7s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
 .line-draw { stroke-dasharray: 900; animation: drawLine 1.4s ease-out both; }
 .kenburns { animation: kenburns 14s ease-in-out infinite alternate; }
-.ticker-track { animation: tickerScroll 30s linear infinite; }
-.ticker-track:hover { animation-play-state: paused; }
 
 .stagger > * { opacity: 0; animation: fadeUp 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
 .stagger > *:nth-child(1) { animation-delay: 0.03s; }
@@ -108,7 +122,6 @@ body::after {
 .stagger > *:nth-child(8) { animation-delay: 0.45s; }
 .stagger > *:nth-child(9) { animation-delay: 0.51s; }
 
-/* link editorial con subrayado que se desliza */
 .uline {
   background-image: linear-gradient(currentColor, currentColor);
   background-size: 0% 1px;
@@ -118,12 +131,6 @@ body::after {
   padding-bottom: 2px;
 }
 .uline:hover { background-size: 100% 1px; }
-
-.skeleton {
-  background: linear-gradient(90deg, #e8e2d5 25%, #f4efe4 50%, #e8e2d5 75%);
-  background-size: 800px 100%;
-  animation: shimmer 1.4s linear infinite;
-}
 
 .num { font-variant-numeric: tabular-nums; }
 .tracked { letter-spacing: 0.28em; }
