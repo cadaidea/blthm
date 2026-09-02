@@ -178,7 +178,7 @@ export function Select({ className, children, ...rest }: SelectHTMLAttributes<HT
 }
 
 /* ---------------------------------- overlay -------------------------------- */
-export function Modal({ open, onClose, kicker, title, children, wide }: { open: boolean; onClose: () => void; kicker: string; title: string; children: ReactNode; wide?: boolean }) {
+export function Modal({ open, onClose, kicker, title, children, wide }: { open: boolean; onClose: () => void; kicker?: string; title: string; children: ReactNode; wide?: boolean }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal>
@@ -186,8 +186,8 @@ export function Modal({ open, onClose, kicker, title, children, wide }: { open: 
       <div className={cls("relative bg-card border border-line rounded-2xl shadow-2xl w-full anim-pop max-h-[88vh] overflow-y-auto", wide ? "max-w-2xl" : "max-w-lg")}>
         <div className="sticky top-0 bg-card/95 backdrop-blur px-5 pt-4 pb-3 border-b border-line flex items-start justify-between gap-3 z-10">
           <div>
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-oakd">{kicker}</div>
-            <h2 className="font-display font-extrabold text-[19px] text-ink leading-tight">{title}</h2>
+            {kicker && <div className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-oakd">{kicker}</div>}
+            <h2 className={cls("font-display font-extrabold text-[19px] text-ink leading-tight", !kicker && "mt-0.5")}>{title}</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-mut hover:bg-ink/6 hover:text-ink transition-colors"><Icon name="x" size={16} /></button>
         </div>
@@ -197,7 +197,7 @@ export function Modal({ open, onClose, kicker, title, children, wide }: { open: 
   );
 }
 
-export function Drawer({ open, onClose, kicker, title, children }: { open: boolean; onClose: () => void; kicker: string; title: string; children: ReactNode }) {
+export function Drawer({ open, onClose, kicker, title, children }: { open: boolean; onClose: () => void; kicker?: string; title: string; children: ReactNode }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50">

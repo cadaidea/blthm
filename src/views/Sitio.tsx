@@ -359,6 +359,93 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
         </section>
       )}
 
+      {/* ═══ PRODUCTO ═══ */}
+      {sub === "producto" && prod && (
+        <section className="max-w-[1200px] mx-auto px-4 lg:px-8 py-10">
+          <button onClick={() => setSub("tienda")} className="text-[12px] font-semibold text-mut hover:text-wine transition-colors inline-flex items-center gap-2 anim-up">
+            <Icon name="arrow" size={13} className="rotate-180" /> Colección
+          </button>
+          <div className="grid lg:grid-cols-[1.15fr_1fr] gap-10 lg:gap-16 mt-6 items-start">
+            {/* imagen */}
+            <div className="anim-up">
+              <div className="relative overflow-hidden rounded-sm bg-[#ece5d8]">
+                {prod.img ? <Thumb src={prod.img} alt={prod.nombre} className="w-full h-[420px] lg:h-[560px]" /> : <SinImagen nombre={prod.nombre} className="w-full h-[420px] lg:h-[560px]" />}
+              </div>
+              {/* miniaturas de variables */}
+              <div className="flex gap-2.5 mt-3">
+                {prod.vars.slice(0, 5).map((v, i) => (
+                  <button key={v.n} onClick={() => setVari(i)} title={v.n}
+                    className={`w-16 h-16 rounded-sm overflow-hidden border-2 transition-all ${vari === i ? "border-wine" : "border-transparent opacity-70 hover:opacity-100"}`}>
+                    <span className="block w-full h-full" style={{ background: v.c }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* detalle */}
+            <div className="anim-up lg:sticky lg:top-24">
+              <div className="text-[12px] font-semibold text-wine">{prod.cat}</div>
+              <h1 className="font-display font-medium text-[40px] lg:text-[46px] leading-[1.03] text-ink mt-2">{prod.nombre}</h1>
+              <div className="flex items-baseline gap-3 mt-5">
+                <span className="font-display font-semibold text-[30px] num text-ink">{money(prod.precio)}</span>
+                <span className="text-[12px] text-fog">Incluido IVA</span>
+              </div>
+
+              {/* selector de variable */}
+              <div className="mt-8">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px] font-semibold text-ink">{prod.vt}</span>
+                  <span className="text-[13px] text-mut">{prod.vars[vari].n}</span>
+                </div>
+                <div className="flex flex-wrap gap-2.5 mt-3">
+                  {prod.vars.map((v, i) => (
+                    <button key={v.n} onClick={() => setVari(i)}
+                      className={`flex items-center gap-2 border rounded-full pl-1.5 pr-3.5 py-1.5 text-[12.5px] transition-all ${vari === i ? "border-wine bg-winel text-ink" : "border-line2 text-mut hover:border-ink/40 hover:text-ink"}`}>
+                      <span className="w-5 h-5 rounded-full border border-ink/15" style={{ background: v.c }} />
+                      {v.n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* cantidad + añadir */}
+              <div className="flex gap-3 mt-8">
+                <div className="flex items-center border border-line2 rounded-sm overflow-hidden shrink-0">
+                  <button className="px-3.5 py-3 hover:bg-ink/5 transition-colors" onClick={() => setPqty(Math.max(1, pqty - 1))}><Icon name="minus" size={13} /></button>
+                  <span className="px-4 font-mono num text-[14px]">{pqty}</span>
+                  <button className="px-3.5 py-3 hover:bg-ink/5 transition-colors" onClick={() => setPqty(pqty + 1)}><Icon name="plus" size={13} /></button>
+                </div>
+                <button onClick={() => { addCart(prod, pqty); setSub("tienda"); setCartOpen(true); }}
+                  className="flex-1 bg-ink text-paper py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">
+                  Añadir al carrito
+                </button>
+                <button onClick={() => toggleLike(prod.id)} title="Me gusta"
+                  className={`w-[50px] grid place-items-center border rounded-sm transition-colors ${likes.includes(prod.id) ? "border-wine bg-winel text-wine" : "border-line2 text-mut hover:text-wine hover:border-wine/40"}`}>
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill={likes.includes(prod.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8"><path d="M12 20.5s-8.2-5-8.2-11A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.2 2.9c0 6-8.2 11-8.2 11z" /></svg>
+                </button>
+              </div>
+
+              {/* detalles */}
+              <div className="mt-9 divide-y divide-line border-y border-line">
+                {[
+                  ["Hecho en", "Cuenca, Ecuador — taller propio"],
+                  [prod.vt, prod.vars[vari].n],
+                  ["Entrega", prod.img ? "5 a 10 días hábiles" : "21 días · se fabrica a pedido"],
+                  ["Garantía", "5 años estructural"],
+                ].map(([t, d]) => (
+                  <div key={t} className="flex justify-between gap-6 py-3 text-[13.5px]">
+                    <span className="text-mut">{t}</span><span className="text-ink text-right">{d}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[13px] text-mut leading-relaxed mt-6">
+                Cada pieza se hace a mano. Si la quieres en otras medidas o con un tapiz distinto, elígela y te enviamos un link para confirmar los detalles con fotos antes de fabricar.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ═══ DIARIO ═══ */}
       {sub === "journal" && (
         <section className="max-w-[1100px] mx-auto px-4 lg:px-8 py-14">
@@ -385,8 +472,8 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
             <div className="space-y-4">
               <Thumb src={IMG.comedor} alt="Showroom BLETIA" className="w-full h-[300px]" />
               <div className="bg-night text-paper p-6">
-                <div className="font-mono text-[9.5px] tracked uppercase text-paper/45">A medida — así funciona</div>
-                <div className="mt-4 space-y-3">
+                <div className="font-display font-semibold text-[22px]">A medida, así funciona</div>
+                <div className="mt-5 space-y-3">
                   {[["Eliges la pieza", "Cualquier modelo de la colección se adapta."], ["Confirmas specs", "Tapiz, lacado y fotos vía un link único."], ["Fabricamos", "Sigue cada etapa desde tu cuenta."], ["Entregamos", "Guía de remisión SRI y armado incluido."]].map(([t, d], i) => (
                     <div key={t} className="flex gap-3.5"><span className="font-display font-semibold text-[19px] text-oakl w-6 num">{i + 1}</span><div><div className="text-[13.5px] font-semibold">{t}</div><div className="text-[12px] text-paper/55">{d}</div></div></div>
                   ))}
@@ -482,7 +569,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
                 <div className="space-y-4">
                   {miCuenta?.cupon && (
                     <div className="bg-wine text-paper px-5 py-4 relative overflow-hidden">
-                      <div className="absolute -right-3 -top-3 font-display italic text-[80px] text-paper/10 leading-none">%</div>
+                      <div className="absolute -right-3 -top-3 font-display font-semibold text-[80px] text-paper/10 leading-none">%</div>
                       <div className="font-mono text-[9.5px] tracked uppercase text-paper/60">Tu cupón</div>
                       <div className="font-display font-semibold text-[24px] mt-1">5% dcto</div>
                       <div className="text-[11.5px] text-paper/70 mt-1">Primera compra · se aplica en el checkout</div>
@@ -549,10 +636,10 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
 
 
       {/* ── carrito ── */}
-      <Drawer open={cartOpen} onClose={() => setCartOpen(false)} kicker={`Carrito · ${cartCount}`} title="Tu selección">
+      <Drawer open={cartOpen} onClose={() => setCartOpen(false)} title={`Tu selección (${cartCount})`}>
         {cartLines.length === 0 ? (
           <div className="text-center py-14">
-            <div className="font-display font-medium text-[24px] text-ink">Tu carrito está <em className="italic">vacío</em></div>
+            <div className="font-display font-medium text-[24px] text-ink">Tu carrito está vacío</div>
             <button onClick={() => { setCartOpen(false); setSub("tienda"); }} className="mt-5 text-[12px] font-bold tracking-[0.14em] uppercase uline text-wine">Ver colección</button>
           </div>
         ) : (
@@ -586,7 +673,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
       </Drawer>
 
       {/* ── checkout ── */}
-      <Modal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} kicker="Checkout · bletia.ec" title={done ? "Pedido confirmado" : "Finalizar compra"} wide>
+      <Modal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} title={done ? "Pedido confirmado" : "Finalizar compra"} wide>
         {done ? (
           <div className="text-center py-6 anim-pop max-w-md mx-auto">
             <div className="w-16 h-16 mx-auto rounded-full bg-pinel text-pined grid place-items-center mb-4"><Icon name="check" size={28} /></div>
@@ -622,7 +709,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
       </Modal>
 
       {/* ── auth popup (Ingresar / Crear cuenta) ── */}
-      <Modal open={authOpen} onClose={() => setAuthOpen(false)} kicker="bletia.ec/cuenta" title="" >
+      <Modal open={authOpen} onClose={() => setAuthOpen(false)} title="Tu cuenta">
         <div className="-mt-4">
           <div className="flex gap-1 bg-ink/5 p-1 rounded-sm mb-4">
             {([["login", "Ingresar"], ["crear", "Crear cuenta"]] as const).map(([k, l]) => (
@@ -649,7 +736,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
       </Modal>
 
       {/* ── newsletter 5% ── */}
-      <Modal open={newsOpen} onClose={() => setNewsOpen(false)} kicker="Únete a nosotros" title="">
+      <Modal open={newsOpen} onClose={() => setNewsOpen(false)} title="Únete a nosotros">
         <div className="-mt-4 text-center">
           <div className="font-display font-semibold text-[46px] text-wine leading-none">5%</div>
           <div className="font-mono text-[10px] tracked uppercase text-fog mt-1">de descuento</div>
@@ -666,11 +753,11 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
       </Modal>
 
       {/* ── artículo ── */}
-      <Modal open={!!artOpen} onClose={() => setArtOpen(null)} kicker={`Diario · ${artOpen?.cat ?? ""}`} title="" wide>
+      <Modal open={!!artOpen} onClose={() => setArtOpen(null)} title={artOpen?.cat ?? "Diario"} wide>
         {artOpen && (
           <div className="-mt-3 max-w-2xl">
-            <div className="font-mono text-[10px] tracked uppercase text-fog">{artOpen.min} min de lectura</div>
-            <h2 className="font-display font-medium text-[34px] leading-[1.08] text-ink mt-2">{artOpen.titulo}</h2>
+            <h2 className="font-display font-medium text-[34px] leading-[1.08] text-ink">{artOpen.titulo}</h2>
+            <div className="text-[12.5px] text-fog mt-2">{artOpen.min} min de lectura</div>
             <Thumb src={artOpen.img} alt={artOpen.titulo} className="w-full h-64 mt-5" />
             <div className="space-y-4 mt-6">
               {artOpen.cuerpo.map((p, i) => <p key={i} className={`text-[15px] leading-relaxed text-ink/80 ${i === 0 ? "first-letter:font-display first-letter:text-[44px] first-letter:float-left first-letter:mr-2 first-letter:leading-[0.85] first-letter:text-wine" : ""}`}>{p}</p>)}
@@ -682,25 +769,31 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
   );
 }
 
-function CardProducto({ p, onOpen, onAdd }: { p: Pub; onOpen: () => void; onAdd: () => void }) {
+function CardProducto({ p, liked, onLike, onOpen, onAdd }: { p: Pub; liked: boolean; onLike: () => void; onOpen: () => void; onAdd: () => void }) {
   return (
     <div className="group cursor-pointer anim-up" onClick={onOpen}>
       <div className="relative overflow-hidden rounded-sm bg-[#ece5d8]">
         {p.img ? <Thumb src={p.img} alt={p.nombre} className="w-full h-[250px] group-hover:scale-[1.05] transition-transform duration-700" /> : <SinImagen nombre={p.nombre} className="w-full h-[250px]" />}
-        <button onClick={(e) => { e.stopPropagation(); onAdd(); }}
-          className="absolute bottom-0 left-0 right-0 bg-night/90 text-paper py-2.5 text-[11px] font-bold tracking-[0.16em] uppercase translate-y-full group-hover:translate-y-0 transition-transform duration-300 hover:bg-wine">
-          Añadir al carrito
+        {/* me gusta — sutil, siempre visible */}
+        <button onClick={(e) => { e.stopPropagation(); onLike(); }} title="Me gusta"
+          className={`absolute top-3 right-3 w-8 h-8 grid place-items-center rounded-full backdrop-blur transition-colors ${liked ? "bg-wine text-paper" : "bg-paper/70 text-ink/60 hover:text-wine"}`}>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8"><path d="M12 20.5s-8.2-5-8.2-11A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.2 2.9c0 6-8.2 11-8.2 11z" /></svg>
         </button>
+        {/* variables + añadir: aparecen al pasar el puntero */}
+        <div className="absolute bottom-0 left-0 right-0 bg-paper/95 backdrop-blur px-3 py-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5" title={p.vars.map((v) => v.n).join(" · ")}>
+            {p.vars.slice(0, 5).map((v) => <span key={v.n} className="w-3.5 h-3.5 rounded-full border border-ink/15" style={{ background: v.c }} />)}
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); onAdd(); }}
+            className="bg-night text-paper px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] uppercase hover:bg-wine transition-colors">
+            Añadir
+          </button>
+        </div>
       </div>
-      <div className="pt-3.5 flex items-start justify-between gap-3">
-        <div>
-          <div className="font-display font-semibold text-[18px] text-ink leading-tight group-hover:text-wine transition-colors">{p.nombre}</div>
-          {p.frase && <div className="font-display italic text-[13px] text-mut mt-0.5">{p.frase}</div>}
-        </div>
-        <div className="text-right shrink-0">
-          <div className="font-mono num text-[14px] font-semibold">{money(p.precio)}</div>
-          <div className="font-mono text-[8.5px] tracked uppercase text-fog">Incluido IVA</div>
-        </div>
+      {/* solo nombre y precio */}
+      <div className="pt-3.5 flex items-baseline justify-between gap-3">
+        <div className="font-display font-semibold text-[18px] text-ink leading-tight group-hover:text-wine transition-colors">{p.nombre}</div>
+        <div className="font-mono num text-[14px] font-semibold shrink-0">{money(p.precio)}</div>
       </div>
     </div>
   );
@@ -713,8 +806,9 @@ function TeaserDiario({ a, onOpen, grande }: { a: (typeof DIARIO)[0]; onOpen: ()
         <Thumb src={a.img} alt={a.titulo} className={`w-full ${grande ? "h-[240px]" : "h-[200px]"} group-hover:scale-[1.05] transition-transform duration-700`} />
       </div>
       <div className="pt-4">
-        <div className="flex items-center gap-3 font-mono text-[9.5px] tracked uppercase"><span className="text-wine">{a.cat}</span><span className="text-fog">{a.min} min de lectura</span></div>
-        <h3 className={`font-display font-semibold leading-snug mt-2 group-hover:text-wine transition-colors ${grande ? "text-[26px]" : "text-[21px]"}`}>{a.titulo}</h3>
+        <div className="text-[11px] font-semibold text-wine">{a.cat}</div>
+        <h3 className={`font-display font-semibold leading-snug mt-1.5 group-hover:text-wine transition-colors ${grande ? "text-[26px]" : "text-[21px]"}`}>{a.titulo}</h3>
+        <div className="text-[12px] text-fog mt-1.5">{a.min} min de lectura</div>
       </div>
     </article>
   );
