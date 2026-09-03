@@ -1,136 +1,136 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { buildPayLink, estadosCliente, estadosLabel, orderFlow, useStore } from "../lib/store";
-import type { Order } from "../lib/types";
-import { calcTotals, copyText, fmtDate, money, uid } from "../lib/util";
-import { Badge, Drawer, Icon, Modal } from "../components/ui";
+import { buildPayLink, useStore } from "../lib/store";
+import type { Order, ProductoWeb, View } from "../lib/types";
+import { calcTotals, copyText, money, uid } from "../lib/util";
+import { Icon } from "../components/ui";
 import { Thumb } from "../components/Img";
+import ThemeToggle from "../components/ThemeToggle";
+import type { WebCtx } from "./sitio/Renderers";
+import { LinkA } from "./sitio/Renderers";
+import { CuentaView, DiarioView, NotFound, PaginaView, PostView, ProductoView, SeguimientoView, TiendaView } from "./sitio/Routes";
 
-/* ── catálogo real de bletia.ec (upgrade) — precios con IVA incluido ── */
-const IMG = {
-  sofa: "https://image.qwenlm.ai/generated-images/876c81bb-04b7-4ecf-b3c5-5409001f7961/_result.png",
-  comedor: "https://image.qwenlm.ai/generated-images/c4c2d864-549d-421e-a9e9-ee3f14fc7e78/_result.png",
-  cama: "https://image.qwenlm.ai/generated-images/4c03f0dd-cf51-487c-964a-67a34323efb3/_result.png",
-  ropero: "https://image.qwenlm.ai/generated-images/9248a4c4-1d9b-4611-b940-870a805ce7d5/_result.png",
-  escritorio: "https://image.qwenlm.ai/generated-images/2c56f5e9-08cb-49de-b7a4-963536e14050/_result.png",
-  poltrona: "https://image.qwenlm.ai/generated-images/087283f8-cf51-449d-9d01-520b4731854c/_result.png",
+/* ── enrutador por hash: la URL existe de verdad (#/tienda, #/diy/slug…) ── */
+type Route =
+  | { k: "home" }
+  | { k: "tienda"; cat: string | null }
+  | { k: "producto"; slug: string }
+  | { k: "diario"; cat: string | null; tag: string | null }
+  | { k: "post"; cat: string; slug: string }
+  | { k: "pagina"; slug: string }
+  | { k: "seguimiento" }
+  | { k: "cuenta" };
+
+const parseRoute = (hash: string): Route => {
+  const raw = (hash || "#/").replace(/^#/, "");
+  const [pathPart, queryPart] = raw.split("?");
+  const segs = pathPart.split("/").filter(Boolean);
+  const q = new URLSearchParams(queryPart ?? "");
+  if (segs.length === 0) return { k: "home" };
+  if (segs[0] === "tienda") return { k: "tienda", cat: null };
+  if (segs[0] === "categoria" && segs[1]) return { k: "tienda", cat: segs[1] };
+  if (segs[0] === "producto" && segs[1]) return { k: "producto", slug: segs[1] };
+  if (segs[0] === "diario") return { k: "diario", cat: q.get("cat"), tag: q.get("tag") };
+  if (segs[0] === "seguimiento") return { k: "seguimiento" };
+  if (segs[0] === "cuenta") return { k: "cuenta" };
+  if (segs.length === 1) return { k: "pagina", slug: segs[0] };
+  return { k: "post", cat: segs[0], slug: segs.slice(1).join("/") };
 };
 
-const TAPIZ = [
-  { n: "Lino crudo", c: "#d9cbb0" },
-  { n: "Bouclé marfil", c: "#efe8da" },
-  { n: "Chenille gris", c: "#b3ada3" },
-  { n: "Terciopelo verde", c: "#3f5d50" },
-  { n: "Cuero coñac", c: "#a06a3c" },
-];
-const MADERA = [
-  { n: "Roble natural", c: "#c7a472" },
-  { n: "Nogal", c: "#7b5233" },
-  { n: "Cerezo", c: "#9a5b40" },
-  { n: "Ébano", c: "#3b332c" },
-];
+const routePath = (r: Route): string => {
+  switch (r.k) {
+    case "home": return "/";
+    case "tienda": return r.cat ? `/categoria/${r.cat}` : "/tienda";
+    case "producto": return `/producto/${r.slug}`;
+    case "diario": return `/diario${r.cat ? `?cat=${r.cat}` : r.tag ? `?tag=${r.tag}` : ""}`;
+    case "post": return `/${r.cat}/${r.slug}`;
+    case "pagina": return `/${r.slug}`;
+    case "seguimiento": return "/seguimiento";
+    case "cuenta": return "/cuenta";
+  }
+};
 
-interface Pub { id: string; nombre: string; precio: number; cat: string; img: string; vt: string; vars: { n: string; c: string }[]; }
-const PUB: Pub[] = [
-  { id: "sofa-bletia", nombre: "Sofá Bletia", precio: 1299, cat: "Sofás", img: IMG.sofa, vt: "Tapiz", vars: TAPIZ },
-  { id: "sofa-miro-studio", nombre: "Sofá Miro Studio", precio: 829, cat: "Sofás", img: "", vt: "Tapiz", vars: TAPIZ },
-  { id: "sofa-dela-forma", nombre: "Sofá Dela Forma", precio: 1309, cat: "Sofás", img: "", vt: "Tapiz", vars: TAPIZ },
-  { id: "sofa-baal-studio", nombre: "Sofá Baal Studio", precio: 699, cat: "Sofás", img: "", vt: "Tapiz", vars: TAPIZ },
-  { id: "sillon-zoe", nombre: "Sillón Zoe", precio: 349, cat: "Sillones", img: IMG.poltrona, vt: "Tapiz", vars: TAPIZ },
-  { id: "mesa-noche-lupe", nombre: "Mesa de noche Lupe", precio: 339, cat: "Veladores", img: IMG.cama, vt: "Acabado", vars: MADERA },
-  { id: "mesa-noche-lira", nombre: "Mesa de noche Lira", precio: 289, cat: "Veladores", img: "", vt: "Acabado", vars: MADERA },
-  { id: "comedor-andino", nombre: "Comedor Andino", precio: 1189, cat: "Centros", img: IMG.comedor, vt: "Acabado", vars: MADERA },
-  { id: "cama-king-nordica", nombre: "Cama King Nórdica", precio: 699, cat: "Piezas", img: IMG.cama, vt: "Acabado", vars: MADERA },
-  { id: "ropero-amazonia", nombre: "Ropero Amazonia", precio: 789, cat: "Piezas", img: IMG.ropero, vt: "Acabado", vars: MADERA },
-  { id: "escritorio-canar", nombre: "Escritorio Cañar", precio: 459, cat: "Centros", img: IMG.escritorio, vt: "Acabado", vars: MADERA },
-  { id: "marco-pino-a5", nombre: "Marco Pino A5", precio: 11.99, cat: "Piezas", img: "", vt: "Acabado", vars: MADERA },
-];
-const CATS = ["Sofás", "Sillones", "Piezas", "Centros", "Veladores"];
-
-const DIARIO = [
-  { id: "d1", cat: "Tips", titulo: "Cómo conservar tu mueble de madera para que dure generaciones", min: 5, img: IMG.comedor, cuerpo: ["La durabilidad de un mueble no es azar: depende de la especie, del secado de la madera y del cuidado cotidiano. En el taller usamos roble y laurel con humedad controlada al 8%.", "Regla de oro: lejos del sol directo y de las rejillas de calefacción. La madera respira; los cambios bruscos de temperatura la agrietan.", "Cada seis meses, una pasada de cera de abeja con paño de algodón devuelve el brillo sin sellar el poro."], },
-  { id: "d2", cat: "Tips", titulo: "No te rindas, esta es la mejor manera de quitar una mancha de tu sofá", min: 4, img: IMG.sofa, cuerpo: ["Primero identifica el código de limpieza de tu tapiz (W, S, WS o X) — está en la etiqueta bajo el cojín.", "Para códigos W: agua tibia con una gota de jabón neutro, paño blanco, toques sin frotar. Nunca empapes.", "Nuestros tapices antimanchas salen con agua carbonatada en los primeros 10 minutos. Después de eso, llámanos: la garantía cubre una visita."], },
-  { id: "d3", cat: "Decoración", titulo: "50 modelos de mesas de noche para tu dormitorio", min: 14, img: IMG.cama, cuerpo: ["Flotantes para cuartos pequeños: liberan el piso y la escoba lo agradece.", "Con gaveta y nicho, la combinación que más pedimos en Cuenca: cargador escondido y libro a la vista.", "A medida: la altura correcta es la del colchón +5 cm. La hacemos exacta para tu cama."], },
-  { id: "d4", cat: "Tendencias", titulo: "El tapiz ideal para un sofá que no se mancha", min: 9, img: IMG.poltrona, cuerpo: ["Los códigos de limpieza mandan: busca telas con tratamiento PFAS-free que repelen líquidos sin plástico al tacto.", "El bouclé sigue en tendencia, pero en hogares con niños gana el chenille de trama cerrada.", "Pide la muestra física: la pantalla miente, la luz de tu sala no."], },
-  { id: "d5", cat: "DIY", titulo: "Cuánto dura un mueble de madera y de qué depende su vida real", min: 8, img: IMG.ropero, cuerpo: ["Un ensamble de caja y espiga bien ejecutado supera los 50 años; uno engrapado, cinco.", "El acabado importa tanto como la madera: laca de poliuretano para uso rudo, aceite-cera para tocar y sentir.", "Nuestra garantía estructural es de 5 años porque el taller responde: si algo falla, vuelve."], },
-  { id: "d6", cat: "Tips", titulo: "El color de tu sofá lo decide la luz, no la tendencia", min: 9, img: IMG.sofa, cuerpo: ["Luz norte (fría): los grises se vuelven azules; mejor cremas y camel.", "Luz sur (cálida en la Sierra): casi todo funciona; cuidado con los verdes que se vuelven oliva.", "Lleva la muestra y mírala a las 9h, 14h y 20h. Tres visitas, una decisión para diez años."], },
-];
-
-type Sub = "home" | "tienda" | "journal" | "casa" | "cuenta" | "seguimiento" | "producto";
 const CUENTA_KEY = "bletia-cuenta";
 
-function SinImagen({ className }: { nombre?: string; className?: string }) {
-  return (
-    <div className={`grid place-items-center bg-[#ece5d8] relative overflow-hidden ${className ?? ""}`}>
-      <div className="text-center">
-        <div className="font-display font-semibold text-[40px] text-ink/20 leading-none">B.</div>
-      </div>
-    </div>
-  );
-}
-
-export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) => void }) {
+export default function Sitio({ nav }: { nav: (v: View) => void }) {
   const { state, dispatch, toast } = useStore();
-  const [sub, setSub] = useState<Sub>("home");
-  const [cat, setCat] = useState("Todas");
-  const [prod, setProd] = useState<Pub | null>(null);
-  const [vari, setVari] = useState(0);
-  const [pqty, setPqty] = useState(1);
+  const cms = state.cms;
+  const cfg = cms.config;
+
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [anuncioOff, setAnuncioOff] = useState(false);
   const [likes, setLikes] = useState<string[]>([]);
-  const abrirProducto = (p: Pub) => { setProd(p); setVari(0); setPqty(1); setSub("producto"); };
-  const toggleLike = (id: string) => setLikes((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const [cart, setCart] = useState<{ id: string; qty: number }[]>([]);
+  const [cart, setCart] = useState<{ id: string; qty: number; vari?: string }[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<"login" | "crear">("login");
   const [turn, setTurn] = useState<"idle" | "checking" | "ok">("idle");
-  const [auth, setAuth] = useState({ nombre: "", email: "", pass: "" });
+  const [authF, setAuthF] = useState({ nombre: "", email: "", pass: "" });
   const [newsOpen, setNewsOpen] = useState(false);
   const [cookies, setCookies] = useState(() => localStorage.getItem("bletia-cookies") !== "ok");
-  const [co, setCo] = useState({ nombre: "", email: "", ciudad: "Cuenca", direccion: "" });
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [done, setDone] = useState<{ code: string; link: string; total: number } | null>(null);
-  const [trackCode, setTrackCode] = useState("");
-  const [tracked, setTracked] = useState<Order | null | "nf">("nf");
-  const [artOpen, setArtOpen] = useState<(typeof DIARIO)[0] | null>(null);
   const [cuenta, setCuenta] = useState<string | null>(() => localStorage.getItem(CUENTA_KEY));
+  const [co, setCo] = useState({ nombre: "", email: "", ciudad: "Cuenca", direccion: "" });
+  const [done, setDone] = useState<{ code: string; link: string; total: number } | null>(null);
 
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [sub]);
+  useEffect(() => {
+    const onHash = () => { setRoute(parseRoute(window.location.hash)); setMenuOpen(false); window.scrollTo({ top: 0 }); };
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("scroll", onScroll); };
+  }, []);
 
+  /* redirecciones automáticas de slugs antiguos (generadas por el CMS al guardar) */
+  useEffect(() => {
+    const path = routePath(route).split("?")[0];
+    const r = cms.redirects.find((x) => x.de === path || x.de === routePath(route));
+    if (r) {
+      window.location.hash = r.a;
+      toast(`Redirigido: ${r.de} → ${r.a}`, "info");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route]);
+
+  const go = (to: string) => { window.location.hash = to; };
+
+  const cartLines = useMemo(
+    () => cart.map((c) => ({ ...c, p: cms.productos.find((p) => p.id === c.id)! })).filter((c) => c.p),
+    [cart, cms.productos]
+  );
   const cartCount = cart.reduce((a, c) => a + c.qty, 0);
-  const cartLines = cart.map((c) => ({ ...c, p: PUB.find((p) => p.id === c.id)! })).filter((c) => c.p);
-  const ivaCart = cartLines.reduce((a, c) => a + c.p.precio * c.qty, 0) / 1.15 * 0.15;
   const totalCart = cartLines.reduce((a, c) => a + c.p.precio * c.qty, 0);
+  const ivaCart = totalCart - totalCart / 1.15;
 
-  const addCart = (p: Pub, n: number) => {
+  const addCart = (p: ProductoWeb, n: number, vari?: string) => {
     setCart((prev) => {
-      const ex = prev.find((c) => c.id === p.id);
-      return ex ? prev.map((c) => (c.id === p.id ? { ...c, qty: c.qty + n } : c)) : [...prev, { id: p.id, qty: n }];
+      const ex = prev.find((c) => c.id === p.id && c.vari === vari);
+      return ex ? prev.map((c) => (c === ex ? { ...c, qty: c.qty + n } : c)) : [...prev, { id: p.id, qty: n, vari }];
     });
-    toast(`${p.nombre} · ${n} × en tu carrito`);
+    toast(`${p.nombre}${vari ? ` · ${vari}` : ""} — en tu carrito`);
   };
+  const toggleLike = (id: string) => setLikes((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   /* ── cuenta de consumidor ── */
-  const abrirAuth = () => { setAuthTab("login"); setTurn("idle"); setAuth({ nombre: "", email: cuenta ?? "", pass: "" }); setAuthOpen(true); };
+  const openAuth = () => { setAuthTab("login"); setTurn("idle"); setAuthF({ nombre: "", email: cuenta ?? "", pass: "" }); setAuthOpen(true); };
   const submitAuth = () => {
-    if (!auth.email.includes("@") || !auth.pass) return toast("Correo y contraseña son obligatorios", "warn");
+    if (!authF.email.includes("@") || !authF.pass) return toast("Correo y contraseña son obligatorios", "warn");
     if (turn !== "ok") { setTurn("checking"); setTimeout(() => setTurn("ok"), 900); return; }
-    if (authTab === "crear" && auth.nombre.trim()) {
-      const existe = state.cuentas.find((c) => c.email.toLowerCase() === auth.email.toLowerCase());
-      if (!existe) dispatch({ type: "ADD_CUENTA", cuenta: { id: uid(), nombre: auth.nombre.trim(), email: auth.email, ciudad: "Cuenca", desde: new Date().toISOString(), cupon: "5% dcto primera compra" } });
-      toast(`Cuenta creada · cupón 5% dcto activado`);
+    if (authTab === "crear" && authF.nombre.trim()) {
+      if (!state.cuentas.find((c) => c.email.toLowerCase() === authF.email.toLowerCase())) {
+        dispatch({ type: "ADD_CUENTA", cuenta: { id: uid(), nombre: authF.nombre.trim(), email: authF.email, ciudad: "Cuenca", desde: new Date().toISOString(), cupon: "5% dcto primera compra" } });
+      }
+      toast("Cuenta creada · cupón 5% dcto activado");
     } else {
-      toast(`Bienvenida de vuelta · ${auth.email}`);
+      toast(`Bienvenida de vuelta · ${authF.email}`);
     }
-    localStorage.setItem(CUENTA_KEY, auth.email);
-    setCuenta(auth.email);
+    localStorage.setItem(CUENTA_KEY, authF.email);
+    setCuenta(authF.email);
     setAuthOpen(false);
-    setSub("cuenta");
+    go("/cuenta");
   };
-
-  const miCuenta = state.cuentas.find((c) => c.email.toLowerCase() === (cuenta ?? "").toLowerCase());
-  const miCliente = state.customers.find((c) => c.email.toLowerCase() === (cuenta ?? "").toLowerCase());
-  const misPedidos = miCliente ? state.orders.filter((o) => o.customerId === miCliente.id) : [];
+  const logout = () => { localStorage.removeItem(CUENTA_KEY); setCuenta(null); toast("Sesión cerrada", "info"); };
 
   /* ── checkout: la cuenta se crea al comprar ── */
   const checkout = () => {
@@ -140,7 +140,7 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
     if (!state.cuentas.find((c) => c.email.toLowerCase() === co.email.toLowerCase())) {
       dispatch({ type: "ADD_CUENTA", cuenta: { id: uid(), nombre: co.nombre.trim(), email: co.email, ciudad: co.ciudad, desde: new Date().toISOString(), cupon: "5% dcto primera compra" } });
     }
-    const lines = cartLines.map((c) => ({ productId: c.p.id, sku: c.p.id.toUpperCase().slice(0, 12), name: c.p.nombre, qty: c.qty, price: Math.round((c.p.precio / 1.15) * 100) / 100, spec: null }));
+    const lines = cartLines.map((c) => ({ productId: c.p.id, sku: c.p.slug.toUpperCase().slice(0, 12), name: `${c.p.nombre}${c.vari ? ` · ${c.vari}` : ""}`, qty: c.qty, price: Math.round((c.p.precio / 1.15) * 100) / 100, spec: null }));
     const t = calcTotals(lines);
     const now = new Date().toISOString();
     const o: Order = {
@@ -161,462 +161,125 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
     toast(`Pedido ${o.code} en el ERP · tu cuenta quedó creada`);
   };
 
-  const buscarPedido = () => {
-    const c = trackCode.trim().toLowerCase();
-    const o = state.orders.find((x) => x.code.toLowerCase() === c || x.code.toLowerCase() === `ped-${c}`);
-    setTracked(o ?? "nf");
-    if (!o) toast("No encontramos ese pedido — revisa el código", "warn");
+  /* ── contenido de la ruta ── */
+  const ctx: WebCtx = { go, cms, likes, toggleLike, addCart, openNews: () => setNewsOpen(true), openAuth, cuenta, logout, path: routePath(route) };
+  const publicado = (p: { estado: string }) => p.estado === "publicada" || p.estado === "publicado" || p.estado === "activo";
+
+  const body = (() => {
+    switch (route.k) {
+      case "home": {
+        const pg = cms.paginas.find((p) => p.slug === "inicio" && publicado(p));
+        return pg ? <PaginaView ctx={ctx} pagina={pg} /> : <NotFound ctx={ctx} />;
+      }
+      case "tienda": return <TiendaView ctx={ctx} cat={route.cat} />;
+      case "producto": return <ProductoView ctx={ctx} slug={route.slug} />;
+      case "diario": return <DiarioView ctx={ctx} cat={route.cat} tag={route.tag} />;
+      case "post": return <PostView ctx={ctx} cat={route.cat} slug={route.slug} />;
+      case "seguimiento": return <SeguimientoView ctx={ctx} />;
+      case "cuenta": return <CuentaView ctx={ctx} />;
+      case "pagina": {
+        const pg = cms.paginas.find((p) => p.slug === route.slug && publicado(p));
+        return pg ? <PaginaView ctx={ctx} pagina={pg} /> : <NotFound ctx={ctx} />;
+      }
+    }
+  })();
+
+  const navActive = (target: string) => {
+    const t = target.split("?")[0];
+    return routePath(route).startsWith(t) && t !== "/" || (t === "/" && route.k === "home");
   };
 
-  const productos = useMemo(() => (cat === "Todas" ? PUB : PUB.filter((p) => p.cat === cat)), [cat]);
-  const stepsIdx = (o: Order) => {
-    const i = orderFlow.indexOf(o.status);
-    if (i !== -1) return i;
-    if (o.status === "en_fabricacion" || o.status === "en_produccion") return 4;
-    if (o.status === "listo_proveedor") return 5;
-    return 0;
-  };
-
-  /* ─────────────── RENDER ─────────────── */
   return (
-    <div className="min-h-screen bg-paper">
-      {/* barra anuncio */}
-      <div className="bg-night text-paper/85 text-center text-[10.5px] font-mono tracking-[0.14em] py-1.5 px-4 uppercase">
-        Envíos a todo Ecuador · Garantía estructural 5 años · Pago seguro con PayPhone
-      </div>
+    <div className="min-h-screen bg-[var(--web-fondo)] dark:bg-paper" style={{ "--web-fondo": cfg.fondo } as React.CSSProperties}>
+      {/* barra de anuncio (configurable en el CMS) */}
+      {cfg.anuncioVisible && !anuncioOff && (
+        <div className="bg-night text-paper/85 text-center text-[10.5px] tracking-[0.14em] uppercase py-2 px-10 relative">
+          {cfg.anuncio}
+          <button onClick={() => setAnuncioOff(true)} aria-label="Cerrar aviso" className="absolute right-3 top-1/2 -translate-y-1/2 text-paper/50 hover:text-paper transition-colors"><Icon name="x" size={12} /></button>
+        </div>
+      )}
 
-      {/* header público */}
-      <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur border-b border-line">
-        <div className="max-w-[1280px] mx-auto px-4 lg:px-8 h-16 flex items-center gap-6">
-          <button onClick={() => setSub("home")} className="flex items-center gap-2.5 group">
-            <span className="font-display font-bold text-[21px] tracking-[0.34em] text-ink group-hover:tracking-[0.4em] transition-all duration-300">BLETIA</span>
+      {/* header principal */}
+      <header className={`sticky top-0 z-40 bg-[var(--web-fondo)]/92 dark:bg-paper/92 backdrop-blur border-b transition-shadow ${scrolled ? "border-line shadow-[0_4px_24px_rgba(0,0,0,0.06)]" : "border-transparent"}`} style={{ "--web-fondo": cfg.fondo } as React.CSSProperties}>
+        <div className="max-w-[1280px] mx-auto px-4 lg:px-8 h-[72px] flex items-center gap-7">
+          <button onClick={() => setMenuOpen(true)} className="lg:hidden w-10 h-10 grid place-items-center text-ink" aria-label="Menú"><Icon name="panel" size={18} /></button>
+          <LinkA to="/" className="flex items-center gap-2.5 group">
+            <span className="font-display font-bold text-[21px] tracking-[0.34em] text-ink group-hover:tracking-[0.4em] transition-all duration-300">{cfg.logo}</span>
             <span className="w-1.5 h-1.5 rounded-full bg-wine mt-2" />
-          </button>
-          <nav className="hidden md:flex items-center gap-7 mx-auto">
-            {([["tienda", "Colección"], ["journal", "Diario"], ["casa", "La Casa"], ["seguimiento", "Seguimiento"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setSub(k)} className={`text-[12px] font-semibold tracking-[0.16em] uppercase transition-colors uline ${sub === k ? "text-wine" : "text-ink/70 hover:text-ink"}`}>{l}</button>
+          </LinkA>
+          <nav className="hidden lg:flex items-center gap-8 mx-auto">
+            {cfg.nav.map((n) => (
+              <LinkA key={n.label} to={n.target} className={`text-[12px] font-semibold tracking-[0.16em] uppercase transition-colors uline ${navActive(n.target) ? "text-wine" : "text-ink/70 hover:text-ink"}`}>{n.label}</LinkA>
             ))}
           </nav>
-          <div className="flex items-center gap-1 ml-auto md:ml-0">
-            <button onClick={() => setNewsOpen(true)} className="hidden lg:flex items-center gap-1 border border-wine/40 text-wine rounded-full px-3 py-1 text-[10.5px] font-bold tracking-wider hover:bg-winel transition-colors mr-2">5% DCTO</button>
-            <button onClick={() => (cuenta ? setSub("cuenta") : abrirAuth())} title={cuenta ? "Mi cuenta" : "Ingresar / crear cuenta"}
-              className="w-10 h-10 grid place-items-center rounded-full hover:bg-ink/6 transition-colors text-ink">
-              <Icon name="users" size={18} />
-            </button>
+          <div className="flex items-center gap-1.5 ml-auto lg:ml-0">
+            <button onClick={() => setNewsOpen(true)} className="hidden xl:flex items-center border border-wine/40 text-wine rounded-full px-3.5 py-1.5 text-[10.5px] font-bold tracking-[0.14em] hover:bg-winel transition-colors mr-2">5% DCTO</button>
+            <ThemeToggle />
+            <button onClick={() => (cuenta ? go("/cuenta") : openAuth())} title={cuenta ? "Mi cuenta" : "Ingresar / crear cuenta"}
+              className="w-10 h-10 grid place-items-center rounded-full hover:bg-ink/6 transition-colors text-ink"><Icon name="users" size={18} /></button>
             <button onClick={() => setCartOpen(true)} title="Carrito" className="relative w-10 h-10 grid place-items-center rounded-full hover:bg-ink/6 transition-colors text-ink">
               <Icon name="cart" size={18} />
               {cartCount > 0 && <span key={cartCount} className="anim-pop absolute -top-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-wine text-paper font-mono text-[9.5px] font-bold grid place-items-center num">{cartCount}</span>}
             </button>
           </div>
         </div>
-        {/* nav móvil */}
-        <div className="md:hidden border-t border-line px-4 py-2 flex gap-4 overflow-x-auto">
-          {([["tienda", "Colección"], ["journal", "Diario"], ["casa", "La Casa"], ["seguimiento", "Seguimiento"], ["cuenta", "Mi cuenta"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => (k === "cuenta" && !cuenta ? abrirAuth() : setSub(k))} className={`text-[11px] font-bold tracking-[0.14em] uppercase whitespace-nowrap ${sub === k ? "text-wine" : "text-mut"}`}>{l}</button>
-          ))}
-        </div>
       </header>
 
-      {/* ═══ HOME ═══ */}
-      {sub === "home" && (
-        <>
-          {/* apertura: la pieza, no el eslogan */}
-          <section className="relative h-[74vh] min-h-[480px] overflow-hidden">
-            <div className="absolute inset-0"><Thumb src={IMG.sofa} alt="Sofá Bletia" className="w-full h-full kenburns" /></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-night/55 via-night/10 to-transparent" />
-            <div className="relative max-w-[1280px] mx-auto px-4 lg:px-8 h-full flex items-end pb-14">
-              <div className="text-paper anim-rise max-w-xl">
-                <h1 className="font-display font-medium text-[52px] lg:text-[76px] leading-[0.98]">
-                  Simple. Elegante. <span className="text-oakl">tu.</span>
-                </h1>
-                <p className="text-[15px] text-paper/75 mt-4 max-w-sm leading-relaxed">Hacemos a mano para cuidar a detalle en cada pieza. Cada pieza define tu espacio.</p>
-                <div className="flex items-center gap-5 mt-7">
-                  <button onClick={() => setSub("tienda")} className="bg-paper text-night px-6 py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-oakl transition-colors">Ver colección</button>
-                  <button onClick={() => setSub("casa")} className="text-paper/85 text-[12.5px] font-semibold tracking-[0.14em] uppercase uline">A medida →</button>
-                </div>
-              </div>
+      {/* menú móvil */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-night/50" onClick={() => setMenuOpen(false)} />
+          <div className="absolute left-0 top-0 h-full w-[300px] bg-card shadow-2xl p-6 anim-drawer flex flex-col">
+            <div className="flex items-center justify-between">
+              <span className="font-display font-bold text-[18px] tracking-[0.3em] text-ink">{cfg.logo}</span>
+              <button onClick={() => setMenuOpen(false)} className="w-9 h-9 grid place-items-center text-mut"><Icon name="x" size={16} /></button>
             </div>
-          </section>
-
-          {/* editorial: hechos en Cuenca */}
-          <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-20 grid lg:grid-cols-2 gap-12 items-center">
-            <div className="anim-up">
-              <h2 className="font-display font-medium text-[40px] lg:text-[50px] leading-[1.05] text-ink">Muebles hechos en Cuenca</h2>
-              <p className="text-[15px] text-mut mt-5 leading-relaxed max-w-md">Es un espacio en donde cabe desde las ideas, el diseño y cada pieza convertida en realidad.</p>
-              <div className="mt-8 divide-y divide-line border-y border-line max-w-md">
-                {[["01", "A medida", "Tus dimensiones, tu tapiz, tu lacado. Confirmas con fotos antes de fabricar."], ["02", "Con color", "Más de 40 telas y 12 acabados de madera para que la pieza sea tuya."], ["03", "Un espacio", "Del plano a la sala: asesoría en showroom o por videollamada."]].map(([n, t, d]) => (
-                  <div key={n} className="flex gap-5 py-4 group hover:bg-card transition-colors px-2 -mx-2">
-                    <span className="font-mono text-[11px] text-wine pt-1.5">{n}</span>
-                    <div><div className="font-display font-semibold text-[20px] text-ink group-hover:translate-x-1 transition-transform">{t}</div><p className="text-[13px] text-mut mt-1">{d}</p></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="relative">
-              <Thumb src={IMG.poltrona} alt="Sillón Zoe" className="w-full h-[440px] rounded-sm" />
-              <div className="absolute -bottom-5 -left-5 bg-night text-paper px-5 py-4 hidden md:block">
-                <div className="font-display text-[19px]">La madera manda, nosotros escuchamos.</div>
-              </div>
-            </div>
-          </section>
-
-          {/* colecciones */}
-          <section className="max-w-[1280px] mx-auto px-4 lg:px-8 pb-20">
-            <div className="flex items-end justify-between mb-7">
-              <div><h2 className="font-display font-medium text-[36px] text-ink">Explora por pieza</h2></div>
-              <button onClick={() => setSub("tienda")} className="text-[12px] font-bold tracking-[0.14em] uppercase uline text-ink/70 hover:text-ink">Ver todo</button>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
-              {CATS.map((c, i) => {
-                const p = PUB.find((x) => x.cat === c && x.img)!;
-                return (
-                  <button key={c} onClick={() => { setCat(c); setSub("tienda"); }} className={`group relative overflow-hidden rounded-sm ${i === 0 ? "col-span-2 row-span-2 h-[420px] lg:h-auto" : "h-[200px]"}`}>
-                    <Thumb src={p.img} alt={c} className="w-full h-full group-hover:scale-[1.05] transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-night/60 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
-                      <span className={`font-display font-semibold text-paper ${i === 0 ? "text-[30px]" : "text-[21px]"}`}>{c}</span>
-                      <span className="w-8 h-8 rounded-full bg-paper/15 backdrop-blur grid place-items-center text-paper opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="arrow" size={13} /></span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* novedades */}
-          <section className="bg-card border-y border-line py-20">
-            <div className="max-w-[1280px] mx-auto px-4 lg:px-8">
-              <div className="flex items-end justify-between mb-8">
-                <div><h2 className="font-display font-medium text-[36px] text-ink">Recién salidas del taller</h2></div>
-                <button onClick={() => { setCat("Todas"); setSub("tienda"); }} className="text-[12px] font-bold tracking-[0.14em] uppercase uline text-ink/70 hover:text-ink">Ver todo</button>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10 stagger">
-                {PUB.slice(0, 8).map((p) => <CardProducto key={p.id} p={p} liked={likes.includes(p.id)} onLike={() => toggleLike(p.id)} onOpen={() => abrirProducto(p)} onAdd={() => addCart(p, 1)} />)}
-              </div>
-            </div>
-          </section>
-
-          {/* destacado */}
-          <section className="bg-night text-paper">
-            <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-16 grid lg:grid-cols-2 gap-10 items-center">
-              <div className="relative order-2 lg:order-1">
-                <Thumb src={IMG.sofa} alt="Sofá Miro Studio" className="w-full h-[380px]" />
-                <span className="absolute top-4 left-4 bg-wine text-paper font-mono text-[9.5px] tracked uppercase px-2.5 py-1">Destacado</span>
-              </div>
-              <div className="order-1 lg:order-2 anim-up">
-                <h2 className="font-display font-medium text-[44px] lg:text-[54px] leading-[1.03]">Sofá Miro Studio</h2>
-                <div className="flex items-baseline gap-3 mt-6">
-                  <span className="font-display font-semibold text-[32px] num">$829.00</span>
-                  <span className="font-mono text-[10px] tracked uppercase text-paper/40">Incluido IVA</span>
-                </div>
-                <button onClick={() => abrirProducto(PUB[1])} className="mt-7 bg-paper text-night px-7 py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-oakl transition-colors">Descubrir</button>
-              </div>
-            </div>
-          </section>
-
-          {/* diario */}
-          <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-20">
-            <div className="flex items-end justify-between mb-8">
-              <div><h2 className="font-display font-medium text-[36px] text-ink">Del taller a tu casa</h2></div>
-              <button onClick={() => setSub("journal")} className="text-[12px] font-bold tracking-[0.14em] uppercase uline text-ink/70 hover:text-ink">Ver todos</button>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6 stagger">
-              {DIARIO.slice(0, 3).map((a) => <TeaserDiario key={a.id} a={a} onOpen={() => setArtOpen(a)} />)}
-            </div>
-          </section>
-
-          {/* newsletter */}
-          <section className="max-w-[1280px] mx-auto px-4 lg:px-8 pb-20">
-            <div className="bg-winel border border-wine/15 px-6 lg:px-12 py-12 grid lg:grid-cols-2 gap-8 items-center">
-              <div>
-                <h3 className="font-display font-medium text-[32px] text-ink leading-tight">Sé la primera persona en recibir novedades de Bletia</h3>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input placeholder="Tu correo" className="flex-1 bg-paper border border-line2 rounded-sm px-4 py-3 text-[13.5px] outline-none focus:border-wine/50 transition-colors" />
-                <button onClick={() => setNewsOpen(true)} className="bg-ink text-paper px-7 py-3 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">Obtener 5% dcto</button>
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* ═══ TIENDA ═══ */}
-      {sub === "tienda" && (
-        <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-14">
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-8 anim-up">
-            <div>
-              <h1 className="font-display font-medium text-[46px] text-ink">Tienda</h1>
-            </div>
-            <div className="flex flex-wrap gap-5">
-              {["Todas", ...CATS].map((c) => (
-                <button key={c} onClick={() => setCat(c)} className={`text-[12.5px] font-semibold tracking-[0.1em] uppercase pb-1 border-b transition-colors ${cat === c ? "border-wine text-wine" : "border-transparent text-mut hover:text-ink"}`}>{c}</button>
+            <nav className="mt-8 space-y-1">
+              {cfg.nav.map((n) => (
+                <LinkA key={n.label} to={n.target} onClick={() => setMenuOpen(false)} className={`block px-3 py-2.5 text-[13px] font-semibold tracking-[0.14em] uppercase ${navActive(n.target) ? "text-wine" : "text-ink/75"}`}>{n.label}</LinkA>
               ))}
+              <LinkA to="/seguimiento" onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 text-[13px] font-semibold tracking-[0.14em] uppercase text-ink/75">Seguimiento</LinkA>
+              <LinkA to="/cuenta" onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 text-[13px] font-semibold tracking-[0.14em] uppercase text-ink/75">Mi cuenta</LinkA>
+            </nav>
+            <div className="mt-auto text-[12px] text-mut space-y-1 border-t border-line pt-4">
+              <div>{cfg.contacto.telefono}</div>
+              <div>{cfg.contacto.email}</div>
             </div>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10 stagger">
-            {productos.map((p) => <CardProducto key={p.id} p={p} liked={likes.includes(p.id)} onLike={() => toggleLike(p.id)} onOpen={() => abrirProducto(p)} onAdd={() => addCart(p, 1)} />)}
-          </div>
-        </section>
-      )}
-
-      {/* ═══ PRODUCTO ═══ */}
-      {sub === "producto" && prod && (
-        <section className="max-w-[1200px] mx-auto px-4 lg:px-8 py-10">
-          <button onClick={() => setSub("tienda")} className="text-[12px] font-semibold text-mut hover:text-wine transition-colors inline-flex items-center gap-2 anim-up">
-            <Icon name="arrow" size={13} className="rotate-180" /> Colección
-          </button>
-          <div className="grid lg:grid-cols-[1.15fr_1fr] gap-10 lg:gap-16 mt-6 items-start">
-            {/* imagen */}
-            <div className="anim-up">
-              <div className="relative overflow-hidden rounded-sm bg-[#ece5d8]">
-                {prod.img ? <Thumb src={prod.img} alt={prod.nombre} className="w-full h-[420px] lg:h-[560px]" /> : <SinImagen nombre={prod.nombre} className="w-full h-[420px] lg:h-[560px]" />}
-              </div>
-              {/* miniaturas de variables */}
-              <div className="flex gap-2.5 mt-3">
-                {prod.vars.slice(0, 5).map((v, i) => (
-                  <button key={v.n} onClick={() => setVari(i)} title={v.n}
-                    className={`w-16 h-16 rounded-sm overflow-hidden border-2 transition-all ${vari === i ? "border-wine" : "border-transparent opacity-70 hover:opacity-100"}`}>
-                    <span className="block w-full h-full" style={{ background: v.c }} />
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* detalle */}
-            <div className="anim-up lg:sticky lg:top-24">
-              <div className="text-[12px] font-semibold text-wine">{prod.cat}</div>
-              <h1 className="font-display font-medium text-[40px] lg:text-[46px] leading-[1.03] text-ink mt-2">{prod.nombre}</h1>
-              <div className="flex items-baseline gap-3 mt-5">
-                <span className="font-display font-semibold text-[30px] num text-ink">{money(prod.precio)}</span>
-                <span className="text-[12px] text-fog">Incluido IVA</span>
-              </div>
-
-              {/* selector de variable */}
-              <div className="mt-8">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-[13px] font-semibold text-ink">{prod.vt}</span>
-                  <span className="text-[13px] text-mut">{prod.vars[vari].n}</span>
-                </div>
-                <div className="flex flex-wrap gap-2.5 mt-3">
-                  {prod.vars.map((v, i) => (
-                    <button key={v.n} onClick={() => setVari(i)}
-                      className={`flex items-center gap-2 border rounded-full pl-1.5 pr-3.5 py-1.5 text-[12.5px] transition-all ${vari === i ? "border-wine bg-winel text-ink" : "border-line2 text-mut hover:border-ink/40 hover:text-ink"}`}>
-                      <span className="w-5 h-5 rounded-full border border-ink/15" style={{ background: v.c }} />
-                      {v.n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* cantidad + añadir */}
-              <div className="flex gap-3 mt-8">
-                <div className="flex items-center border border-line2 rounded-sm overflow-hidden shrink-0">
-                  <button className="px-3.5 py-3 hover:bg-ink/5 transition-colors" onClick={() => setPqty(Math.max(1, pqty - 1))}><Icon name="minus" size={13} /></button>
-                  <span className="px-4 font-mono num text-[14px]">{pqty}</span>
-                  <button className="px-3.5 py-3 hover:bg-ink/5 transition-colors" onClick={() => setPqty(pqty + 1)}><Icon name="plus" size={13} /></button>
-                </div>
-                <button onClick={() => { addCart(prod, pqty); setSub("tienda"); setCartOpen(true); }}
-                  className="flex-1 bg-ink text-paper py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">
-                  Añadir al carrito
-                </button>
-                <button onClick={() => toggleLike(prod.id)} title="Me gusta"
-                  className={`w-[50px] grid place-items-center border rounded-sm transition-colors ${likes.includes(prod.id) ? "border-wine bg-winel text-wine" : "border-line2 text-mut hover:text-wine hover:border-wine/40"}`}>
-                  <svg viewBox="0 0 24 24" width="17" height="17" fill={likes.includes(prod.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8"><path d="M12 20.5s-8.2-5-8.2-11A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.2 2.9c0 6-8.2 11-8.2 11z" /></svg>
-                </button>
-              </div>
-
-              {/* detalles */}
-              <div className="mt-9 divide-y divide-line border-y border-line">
-                {[
-                  ["Hecho en", "Cuenca, Ecuador — taller propio"],
-                  [prod.vt, prod.vars[vari].n],
-                  ["Entrega", prod.img ? "5 a 10 días hábiles" : "21 días · se fabrica a pedido"],
-                  ["Garantía", "5 años estructural"],
-                ].map(([t, d]) => (
-                  <div key={t} className="flex justify-between gap-6 py-3 text-[13.5px]">
-                    <span className="text-mut">{t}</span><span className="text-ink text-right">{d}</span>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-[13px] text-mut leading-relaxed mt-6">
-                Cada pieza se hace a mano. Si la quieres en otras medidas o con un tapiz distinto, elígela y te enviamos un link para confirmar los detalles con fotos antes de fabricar.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ DIARIO ═══ */}
-      {sub === "journal" && (
-        <section className="max-w-[1100px] mx-auto px-4 lg:px-8 py-14">
-          <div className="anim-up mb-10"><h1 className="font-display font-medium text-[46px] text-ink">Historias de madera y tela</h1></div>
-          <div className="grid md:grid-cols-2 gap-x-8 gap-y-12 stagger">
-            {DIARIO.map((a) => <TeaserDiario key={a.id} a={a} onOpen={() => setArtOpen(a)} grande />)}
-          </div>
-        </section>
-      )}
-
-      {/* ═══ LA CASA ═══ */}
-      {sub === "casa" && (
-        <section className="max-w-[1100px] mx-auto px-4 lg:px-8 py-14">
-          <div className="grid lg:grid-cols-2 gap-12 items-start anim-up">
-            <div>
-              <h1 className="font-display font-medium text-[46px] text-ink leading-tight">Un espacio para las ideas</h1>
-              <p className="text-[15px] text-mut mt-5 leading-relaxed">Es un espacio en donde cabe desde las ideas, el diseño y cada pieza convertida en realidad. Visítanos en Cuenca: el café lo ponemos nosotros, las medidas tú.</p>
-              <div className="mt-8 space-y-3">
-                {[["Showroom", "Calle Larga 1-20 y Av. Solano, Cuenca"], ["Taller", "Panamericana Sur km 3, Cuenca — visitas con cita"], ["Horario", "Lun–Sáb · 09:30 a 18:30"], ["Contacto", "07 284 5511 · hola@bletia.ec"]].map(([t, d]) => (
-                  <div key={t} className="flex gap-4 border-b border-line pb-3"><span className="font-mono text-[10px] tracked uppercase text-wine w-24 pt-1 shrink-0">{t}</span><span className="text-[14px] text-ink">{d}</span></div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-4">
-              <Thumb src={IMG.comedor} alt="Showroom BLETIA" className="w-full h-[300px]" />
-              <div className="bg-night text-paper p-6">
-                <div className="font-display font-semibold text-[22px]">A medida, así funciona</div>
-                <div className="mt-5 space-y-3">
-                  {[["Eliges la pieza", "Cualquier modelo de la colección se adapta."], ["Confirmas specs", "Tapiz, lacado y fotos vía un link único."], ["Fabricamos", "Sigue cada etapa desde tu cuenta."], ["Entregamos", "Guía de remisión SRI y armado incluido."]].map(([t, d], i) => (
-                    <div key={t} className="flex gap-3.5"><span className="font-display font-semibold text-[19px] text-oakl w-6 num">{i + 1}</span><div><div className="text-[13.5px] font-semibold">{t}</div><div className="text-[12px] text-paper/55">{d}</div></div></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ SEGUIMIENTO ═══ */}
-      {sub === "seguimiento" && (
-        <section className="max-w-[640px] mx-auto px-4 py-14">
-          <div className="text-center anim-up">
-            <h1 className="font-display font-medium text-[42px] text-ink">¿Dónde está tu pieza?</h1>
-            <p className="text-[13.5px] text-mut mt-2">Ingresa el código de tu pedido (lo recibiste por correo o WhatsApp).</p>
-          </div>
-          <div className="flex gap-2 mt-7">
-            <input value={trackCode} onChange={(e) => setTrackCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscarPedido()} placeholder="PED-1041"
-              className="flex-1 bg-card border border-line2 rounded-sm px-4 py-3 font-mono text-center text-[15px] outline-none focus:border-wine/50 transition-colors" />
-            <button onClick={buscarPedido} className="bg-ink text-paper px-6 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">Buscar</button>
-          </div>
-          {tracked === "nf" && (
-            <div className="text-center mt-10 text-[13px] text-fog anim-up">Prueba con un código de la demo: <button className="uline text-mut font-mono text-[12px]" onClick={() => { setTrackCode("PED-1043"); setTracked(state.orders.find((o) => o.code === "PED-1043") ?? "nf"); }}>PED-1043</button> · <button className="uline text-mut font-mono text-[12px]" onClick={() => { setTrackCode("PED-1041"); setTracked(state.orders.find((o) => o.code === "PED-1041") ?? "nf"); }}>PED-1041</button></div>
-          )}
-          {tracked !== "nf" && tracked && (() => {
-            const o = tracked as Order;
-            const idx = stepsIdx(o);
-            const fin = ["anulado", "cancelado"].includes(o.status);
-            return (
-              <div className="mt-10 anim-pop">
-                <div className="flex items-baseline justify-between border-b border-line pb-4">
-                  <div><div className="font-mono text-[11px] text-fog">{o.code} · {fmtDate(o.createdAt)}</div><div className="font-display font-semibold text-[30px] text-ink">{estadosCliente[o.status]}</div></div>
-                  <div className="text-right"><div className="font-mono text-[10px] uppercase tracked text-fog">Total</div><div className="font-display font-semibold text-[24px] num">{money(o.total)}</div></div>
-                </div>
-                {fin && <div className="mt-5 bg-brickl border border-brick/25 px-4 py-3 text-[13px] text-brick">Este pedido fue {o.status === "anulado" ? "anulado" : "cancelado"}. Si ya pagaste, tu reembolso sale en 48 h.</div>}
-                <div className="relative pl-7 mt-6 space-y-1 before:absolute before:left-[10px] before:top-2 before:bottom-2 before:w-px before:bg-line2">
-                  {orderFlow.map((s, i) => {
-                    const doneS = !fin && i <= idx;
-                    return (
-                      <div key={s} className="relative py-1.5">
-                        <span className={`absolute -left-7 top-1.5 w-5 h-5 rounded-full grid place-items-center border-4 border-paper ${doneS ? (s === "entregado" ? "bg-pine" : "bg-wine") : "bg-line2"}`}>
-                          {doneS && <Icon name="check" size={9} className="text-paper" />}
-                        </span>
-                        <div className={`text-[14.5px] ${!fin && i === idx ? "font-display font-bold text-[17px] text-ink" : doneS ? "text-ink/70" : "text-fog"}`}>{estadosCliente[s]}</div>
-                        {!fin && i === idx && <div className="font-mono text-[10px] text-wine uppercase tracking-[0.14em] mt-0.5 anim-feed">estás aquí</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-6 border-t border-line pt-4 space-y-1.5">
-                  {o.items.map((i, ix) => (
-                    <div key={ix} className="flex justify-between text-[13.5px]"><span>{i.qty}× {i.name}</span><span className="font-mono num text-mut">{money(i.qty * i.price * 1.15)}</span></div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-        </section>
-      )}
-
-      {/* ═══ CUENTA ═══ */}
-      {sub === "cuenta" && (
-        <section className="max-w-[900px] mx-auto px-4 py-14">
-          {!cuenta ? (
-            <div className="text-center py-16 anim-up">
-              <div className="font-display font-medium text-[36px] text-ink">Tu espacio, tu cuenta</div>
-              <p className="text-[14px] text-mut mt-3">Ingresa para ver tus pedidos, seguimientos y cupones.</p>
-              <button onClick={abrirAuth} className="mt-6 bg-ink text-paper px-8 py-3 text-[12.5px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">Ingresar / crear cuenta</button>
-            </div>
-          ) : (
-            <div className="anim-up">
-              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-5">
-                <div><h1 className="font-display font-medium text-[40px] text-ink">{miCuenta?.nombre ?? cuenta}</h1></div>
-                <button onClick={() => { localStorage.removeItem(CUENTA_KEY); setCuenta(null); toast("Sesión cerrada", "info"); }} className="text-[12px] font-semibold uppercase tracking-[0.12em] text-mut uline">Cerrar sesión</button>
-              </div>
-              <div className="grid md:grid-cols-3 gap-4 mt-7">
-                <div className="md:col-span-2 space-y-3">
-                  <div className="font-mono text-[10px] tracked uppercase text-fog">Mis pedidos</div>
-                  {misPedidos.length === 0 && <div className="border border-line bg-card px-5 py-8 text-center text-[13.5px] text-mut">Aún no tienes pedidos. <button className="uline text-wine font-semibold" onClick={() => setSub("tienda")}>Explorar la colección</button></div>}
-                  {misPedidos.map((o) => (
-                    <div key={o.id} className="border border-line bg-card px-5 py-4 flex flex-wrap items-center gap-3 hover:border-wine/40 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-mono text-[11px] text-fog">{o.code} · {fmtDate(o.createdAt)}</div>
-                        <div className="font-display font-semibold text-[19px] text-ink">{estadosCliente[o.status]}</div>
-                        <div className="text-[12px] text-mut">{o.items.reduce((a, i) => a + i.qty, 0)} piezas · {o.bultos} bultos</div>
-                      </div>
-                      <div className="font-mono num text-[15px] font-semibold">{money(o.total)}</div>
-                      <button onClick={() => { setSub("seguimiento"); setTrackCode(o.code); setTracked(o); }} className="border border-ink px-4 py-2 text-[11px] font-bold tracking-[0.12em] uppercase hover:bg-ink hover:text-paper transition-colors">Seguir</button>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-4">
-                  {miCuenta?.cupon && (
-                    <div className="bg-wine text-paper px-5 py-4 relative overflow-hidden">
-                      <div className="absolute -right-3 -top-3 font-display font-semibold text-[80px] text-paper/10 leading-none">%</div>
-                      <div className="font-mono text-[9.5px] tracked uppercase text-paper/60">Tu cupón</div>
-                      <div className="font-display font-semibold text-[24px] mt-1">5% dcto</div>
-                      <div className="text-[11.5px] text-paper/70 mt-1">Primera compra · se aplica en el checkout</div>
-                    </div>
-                  )}
-                  <div className="border border-line bg-card px-5 py-4">
-                    <div className="font-mono text-[9.5px] tracked uppercase text-fog">Datos</div>
-                    <div className="text-[13px] text-ink mt-2 space-y-1"><div>{cuenta}</div><div className="text-mut">{miCuenta?.ciudad ?? "Ecuador"} · cliente desde {miCuenta ? fmtDate(miCuenta.desde) : "—"}</div></div>
-                  </div>
-                  <div className="border border-line bg-card px-5 py-4">
-                    <div className="font-mono text-[9.5px] tracked uppercase text-fog">Garantía</div>
-                    <p className="text-[12.5px] text-mut mt-2 leading-relaxed">5 años estructural en piezas de taller. Actívala con tu número de pedido.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* footer */}
-      <footer className="bg-night text-paper/65 mt-20">
-        <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-14 grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
-          <div>
-            <div className="flex items-center gap-2.5"><span className="font-display font-bold text-[20px] tracking-[0.34em] text-paper">BLETIA</span><span className="w-1.5 h-1.5 rounded-full bg-wine mt-2" /></div>
-            <p className="text-[13px] text-paper/45 mt-3 tracking-wide">Simple. Elegante. tu.</p>
-            <p className="text-[12px] mt-4 leading-relaxed max-w-xs">Muebles hechos en Cuenca, Ecuador. Taller propio desde hace 27 años · {state.settings.company.ruc}</p>
-          </div>
-          <div className="text-[12.5px] space-y-2.5">
-            <div className="font-mono text-[9.5px] tracked uppercase text-paper/35 mb-3">Colección</div>
-            {CATS.map((c) => <button key={c} onClick={() => { setCat(c); setSub("tienda"); window.scrollTo({ top: 0 }); }} className="block hover:text-oakl transition-colors">{c}</button>)}
-          </div>
-          <div className="text-[12.5px] space-y-2.5">
-            <div className="font-mono text-[9.5px] tracked uppercase text-paper/35 mb-3">Ayuda</div>
-            {[["Seguimiento", "seguimiento"], ["Garantía 5 años", "casa"], ["La Casa", "casa"], ["Diario", "journal"]].map(([l, k]) => <button key={l} onClick={() => setSub(k as Sub)} className="block hover:text-oakl transition-colors">{l}</button>)}
-          </div>
-          <div className="text-[12.5px] space-y-2.5">
-            <div className="font-mono text-[9.5px] tracked uppercase text-paper/35 mb-3">Cuenta</div>
-            <button onClick={() => (cuenta ? setSub("cuenta") : abrirAuth())} className="block hover:text-oakl transition-colors">{cuenta ? "Mi cuenta" : "Ingresar"}</button>
-            <button onClick={() => { setAuthTab("crear"); setTurn("idle"); setAuthOpen(true); }} className="block hover:text-oakl transition-colors">Crear cuenta</button>
-            <div className="pt-3 flex gap-2"><Badge tone="oak">PayPhone</Badge><Badge tone="fog">SRI</Badge></div>
           </div>
         </div>
+      )}
+
+      {/* ══ contenido de la ruta ══ */}
+      <main>{body}</main>
+
+      {/* footer — columnas editables en el CMS */}
+      <footer className="bg-night text-paper/65 mt-24">
+        <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-16 grid md:grid-cols-[1.4fr_repeat(3,1fr)] gap-10" style={{ gridTemplateColumns: undefined }}>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="font-display font-bold text-[20px] tracking-[0.34em] text-paper">{cfg.logo}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-wine mt-2" />
+            </div>
+            <p className="text-[13px] text-paper/45 mt-4">Simple. Elegante. tu.</p>
+            <div className="text-[12.5px] mt-5 space-y-1.5 text-paper/55">
+              <div>{cfg.contacto.direccion}</div>
+              <div>{cfg.contacto.telefono} · {cfg.contacto.email}</div>
+              <div>{cfg.contacto.horario}</div>
+            </div>
+          </div>
+          {cfg.footer.map((col) => (
+            <div key={col.titulo} className="text-[12.5px] space-y-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-paper/35 mb-3">{col.titulo}</div>
+              {col.links.map((l) => (
+                <LinkA key={l.label} to={l.target} className="block hover:text-oakl transition-colors">{l.label}</LinkA>
+              ))}
+            </div>
+          ))}
+        </div>
         <div className="border-t border-paper/10">
-          <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-4 flex flex-wrap justify-between gap-2 font-mono text-[10px] text-paper/30">
-            <span>© 2026 BLETIA · hecho en Cuenca, Ecuador</span>
-            <span>Privacidad · Cookies · Cambios y devoluciones</span>
+          <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-5 flex flex-wrap justify-between gap-2 text-[11px] text-paper/35">
+            <span>{cfg.copyright}</span>
+            <span className="flex items-center gap-3">Pago seguro <b className="text-paper/60">PayPhone</b> · Factura electrónica <b className="text-paper/60">SRI</b></span>
           </div>
         </div>
       </footer>
@@ -627,189 +290,172 @@ export default function Sitio({ nav }: { nav: (v: import("../lib/types").View) =
           <div className="font-display font-semibold text-[17px]">Tu privacidad</div>
           <p className="text-[11.5px] text-paper/60 mt-1.5 leading-relaxed">Usamos cookies para mejorar tu experiencia. Necesarias, analíticas y de marketing — tú decides.</p>
           <div className="flex gap-2 mt-3.5">
-            <button onClick={() => { localStorage.setItem("bletia-cookies", "ok"); setCookies(false); }} className="flex-1 bg-paper text-night py-2 text-[11px] font-bold tracking-wider uppercase hover:bg-oakl transition-colors">Aceptar</button>
-            <button onClick={() => { localStorage.setItem("bletia-cookies", "ok"); setCookies(false); }} className="flex-1 border border-paper/25 py-2 text-[11px] font-bold tracking-wider uppercase hover:bg-paper/10 transition-colors">Solo necesarias</button>
+            <button onClick={() => { localStorage.setItem("bletia-cookies", "ok"); setCookies(false); }} className="flex-1 bg-paper text-night py-2.5 text-[11px] font-bold tracking-[0.14em] uppercase hover:bg-oakl transition-colors">Aceptar</button>
+            <button onClick={() => { localStorage.setItem("bletia-cookies", "ok"); setCookies(false); }} className="flex-1 border border-paper/25 py-2.5 text-[11px] font-bold tracking-[0.14em] uppercase hover:bg-paper/10 transition-colors">Solo necesarias</button>
           </div>
         </div>
       )}
 
-
-
       {/* ── carrito ── */}
-      <Drawer open={cartOpen} onClose={() => setCartOpen(false)} title={`Tu selección (${cartCount})`}>
-        {cartLines.length === 0 ? (
-          <div className="text-center py-14">
-            <div className="font-display font-medium text-[24px] text-ink">Tu carrito está vacío</div>
-            <button onClick={() => { setCartOpen(false); setSub("tienda"); }} className="mt-5 text-[12px] font-bold tracking-[0.14em] uppercase uline text-wine">Ver colección</button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {cartLines.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 border-b border-line pb-3">
-                {c.p.img ? <Thumb src={c.p.img} alt={c.p.nombre} className="w-16 h-16" /> : <SinImagen nombre={c.p.nombre} className="w-16 h-16" />}
-                <div className="min-w-0 flex-1">
-                  <div className="font-display font-semibold text-[16px] text-ink leading-tight">{c.p.nombre}</div>
-                  <div className="font-mono text-[11px] text-fog num">{money(c.p.precio)} · Incluido IVA</div>
-                </div>
-                <div className="flex items-center border border-line2 rounded-sm overflow-hidden shrink-0">
-                  <button className="px-2 py-1 hover:bg-ink/5" onClick={() => setCart(cart.map((x) => x.id === c.id ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}><Icon name="minus" size={11} /></button>
-                  <span className="px-2.5 font-mono text-[12px] num">{c.qty}</span>
-                  <button className="px-2 py-1 hover:bg-ink/5" onClick={() => setCart(cart.map((x) => x.id === c.id ? { ...x, qty: x.qty + 1 } : x))}><Icon name="plus" size={11} /></button>
-                </div>
-                <button className="text-fog hover:text-brick transition-colors" onClick={() => setCart(cart.filter((x) => x.id !== c.id))}><Icon name="x" size={14} /></button>
-              </div>
-            ))}
-            <div className="pt-2 space-y-1 text-[13px]">
-              <div className="flex justify-between text-mut"><span>Subtotal</span><span className="font-mono num">{money(totalCart - ivaCart)}</span></div>
-              <div className="flex justify-between text-mut"><span>IVA 15%</span><span className="font-mono num">{money(ivaCart)}</span></div>
-              <div className="flex justify-between font-display font-bold text-[20px] text-ink pt-1"><span>Total</span><span className="num">{money(totalCart)}</span></div>
-              <div className="text-[10px] font-mono uppercase tracked text-fog text-right">Incluido IVA</div>
+      {cartOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-night/50" onClick={() => setCartOpen(false)} />
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-card border-l border-line shadow-2xl anim-drawer flex flex-col">
+            <div className="px-6 pt-6 pb-4 border-b border-line flex items-center justify-between">
+              <div className="font-display font-semibold text-[22px] text-ink">Tu selección ({cartCount})</div>
+              <button onClick={() => setCartOpen(false)} className="w-9 h-9 grid place-items-center text-mut hover:text-ink"><Icon name="x" size={16} /></button>
             </div>
-            <button onClick={() => { setCo({ nombre: miCuenta?.nombre ?? "", email: cuenta ?? "", ciudad: miCuenta?.ciudad ?? "Cuenca", direccion: "" }); setDone(null); setCheckoutOpen(true); }}
-              className="w-full bg-ink text-paper py-3.5 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">Finalizar compra</button>
-            <p className="text-center text-[10.5px] text-fog">Pago seguro con PayPhone · la tarjeta nunca toca nuestros servidores</p>
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {cartLines.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="font-display font-medium text-[24px] text-ink">Tu carrito está vacío</div>
+                  <button onClick={() => { setCartOpen(false); go("/tienda"); }} className="mt-5 text-[12px] font-bold tracking-[0.16em] uppercase uline text-wine">Ver colección</button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {cartLines.map((c, ix) => (
+                    <div key={`${c.id}-${c.vari ?? ""}`} className="flex items-center gap-3.5 border-b border-line pb-4">
+                      {c.p.img ? <Thumb src={c.p.img} alt={c.p.nombre} className="w-[68px] h-[68px]" /> : <div className="w-[68px] h-[68px] bg-[#ececea] grid place-items-center font-display font-semibold text-[24px] text-ink/20">B.</div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-display font-semibold text-[16px] text-ink leading-tight">{c.p.nombre}</div>
+                        {c.vari && <div className="text-[11.5px] text-mut mt-0.5">{c.p.vt}: {c.vari}</div>}
+                        <div className="font-mono text-[11.5px] text-fog num mt-0.5">{money(c.p.precio)} · IVA incluido</div>
+                      </div>
+                      <div className="flex items-center border border-line2 shrink-0">
+                        <button className="px-2.5 py-1.5 hover:bg-ink/5" onClick={() => setCart(cart.map((x, i2) => (i2 === ix ? { ...x, qty: Math.max(1, x.qty - 1) } : x)))}><Icon name="minus" size={11} /></button>
+                        <span className="px-3 font-mono text-[12.5px] num">{c.qty}</span>
+                        <button className="px-2.5 py-1.5 hover:bg-ink/5" onClick={() => setCart(cart.map((x, i2) => (i2 === ix ? { ...x, qty: x.qty + 1 } : x)))}><Icon name="plus" size={11} /></button>
+                      </div>
+                      <button className="text-fog hover:text-brick transition-colors" onClick={() => setCart(cart.filter((_, i2) => i2 !== ix))}><Icon name="x" size={14} /></button>
+                    </div>
+                  ))}
+                  <div className="pt-2 space-y-1.5 text-[13.5px]">
+                    <div className="flex justify-between text-mut"><span>Subtotal</span><span className="font-mono num">{money(totalCart - ivaCart)}</span></div>
+                    <div className="flex justify-between text-mut"><span>IVA 15%</span><span className="font-mono num">{money(ivaCart)}</span></div>
+                    <div className="flex justify-between font-display font-bold text-[21px] text-ink pt-1"><span>Total</span><span className="num">{money(totalCart)}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {cartLines.length > 0 && (
+              <div className="border-t border-line px-6 py-5">
+                <button onClick={() => { setCo({ nombre: state.cuentas.find((c) => c.email === cuenta)?.nombre ?? "", email: cuenta ?? "", ciudad: "Cuenca", direccion: "" }); setDone(null); setCheckoutOpen(true); }}
+                  className="w-full bg-ink text-paper py-4 text-[12px] font-bold tracking-[0.16em] uppercase hover:bg-wine transition-colors">Finalizar compra</button>
+                <p className="text-center text-[10.5px] text-fog mt-2.5">Pago seguro con PayPhone · la tarjeta nunca toca nuestros servidores</p>
+              </div>
+            )}
           </div>
-        )}
-      </Drawer>
+        </div>
+      )}
 
       {/* ── checkout ── */}
-      <Modal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} title={done ? "Pedido confirmado" : "Finalizar compra"} wide>
-        {done ? (
-          <div className="text-center py-6 anim-pop max-w-md mx-auto">
-            <div className="w-16 h-16 mx-auto rounded-full bg-pinel text-pined grid place-items-center mb-4"><Icon name="check" size={28} /></div>
-            <div className="font-display font-medium text-[30px] text-ink">Gracias por tu compra</div>
-            <p className="text-[13.5px] text-mut mt-2">Tu pedido <b className="font-mono">{done.code}</b> por <b className="num">{money(done.total)}</b> ya está en el taller. Tu cuenta quedó creada.</p>
-            <div className="mt-5 bg-night text-paper p-5 text-left">
-              <div className="font-mono text-[9.5px] tracked uppercase text-paper/45">Paga con PayPhone</div>
-              <div className="font-mono text-[12px] text-oakl break-all mt-1.5">{done.link}</div>
-              <div className="flex gap-2 mt-4">
-                <button onClick={async () => { await copyText(done.link); toast("Link de pago copiado"); }} className="flex-1 border border-paper/25 py-2.5 text-[11px] font-bold tracking-wider uppercase hover:bg-paper/10 transition-colors">Copiar link</button>
-                <button onClick={() => { setCheckoutOpen(false); setSub("seguimiento"); setTrackCode(done.code); setTracked(state.orders.find((o) => o.code === done.code) ?? "nf"); }} className="flex-1 bg-paper text-night py-2.5 text-[11px] font-bold tracking-wider uppercase hover:bg-oakl transition-colors">Rastrear pedido</button>
+      {checkoutOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+          <div className="absolute inset-0 bg-night/55" onClick={() => setCheckoutOpen(false)} />
+          <div className="relative bg-card border border-line shadow-2xl w-full max-w-lg anim-pop max-h-[88vh] overflow-y-auto">
+            <div className="px-6 pt-5 pb-4 border-b border-line flex items-center justify-between">
+              <div className="font-display font-semibold text-[22px] text-ink">{done ? "Pedido confirmado" : "Finalizar compra"}</div>
+              <button onClick={() => setCheckoutOpen(false)} className="w-9 h-9 grid place-items-center text-mut hover:text-ink"><Icon name="x" size={16} /></button>
+            </div>
+            <div className="p-6">
+              {done ? (
+                <div className="text-center anim-pop">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-mossl text-[#41621f] grid place-items-center mb-4"><Icon name="check" size={28} /></div>
+                  <div className="font-display font-medium text-[28px] text-ink">Gracias por tu compra</div>
+                  <p className="text-[13.5px] text-mut mt-2">Tu pedido <b className="font-mono">{done.code}</b> por <b className="num">{money(done.total)}</b> ya está en el taller. Tu cuenta quedó creada.</p>
+                  <div className="mt-5 bg-night text-paper p-5 text-left">
+                    <div className="text-[9.5px] uppercase tracking-[0.22em] text-paper/45">Paga con PayPhone</div>
+                    <div className="font-mono text-[12px] text-oakl break-all mt-1.5">{done.link}</div>
+                    <div className="flex gap-2 mt-4">
+                      <button onClick={async () => { await copyText(done.link); toast("Link de pago copiado"); }} className="flex-1 border border-paper/25 py-2.5 text-[11px] font-bold tracking-[0.14em] uppercase hover:bg-paper/10 transition-colors">Copiar link</button>
+                      <button onClick={() => { setCheckoutOpen(false); sessionStorage.setItem("bletia-track", done.code); go("/seguimiento"); }} className="flex-1 bg-paper text-night py-2.5 text-[11px] font-bold tracking-[0.14em] uppercase hover:bg-oakl transition-colors">Rastrear pedido</button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {!cuenta && <p className="text-[12.5px] text-mut bg-winel border border-wine/15 px-4 py-3">Tu <b className="text-wine">cuenta se crea automáticamente</b> con la compra — sin formularios extra.</p>}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <input placeholder="Nombre completo" value={co.nombre} onChange={(e) => setCo({ ...co, nombre: e.target.value })} className="bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+                    <input placeholder="Correo" value={co.email} onChange={(e) => setCo({ ...co, email: e.target.value })} className="bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+                    <select value={co.ciudad} onChange={(e) => setCo({ ...co, ciudad: e.target.value })} className="bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50">
+                      {["Cuenca", "Quito", "Guayaquil", "Ambato", "Riobamba", "Manta"].map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                    <input placeholder="Dirección de entrega" value={co.direccion} onChange={(e) => setCo({ ...co, direccion: e.target.value })} className="bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+                  </div>
+                  <div className="flex justify-between items-center border-t border-line pt-4">
+                    <span className="text-[13px] text-mut">{cartCount} piezas · IVA incluido</span>
+                    <span className="font-display font-bold text-[23px] num">{money(totalCart)}</span>
+                  </div>
+                  <button onClick={checkout} className="w-full bg-ink text-paper py-4 text-[12px] font-bold tracking-[0.16em] uppercase hover:bg-wine transition-colors flex items-center justify-center gap-2"><Icon name="qr" size={15} /> Crear pedido y link de pago</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── auth ── */}
+      {authOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+          <div className="absolute inset-0 bg-night/55" onClick={() => setAuthOpen(false)} />
+          <div className="relative bg-card border border-line shadow-2xl w-full max-w-md anim-pop">
+            <div className="px-6 pt-5 pb-4 border-b border-line flex items-center justify-between">
+              <div className="font-display font-semibold text-[22px] text-ink">Tu cuenta</div>
+              <button onClick={() => setAuthOpen(false)} className="w-9 h-9 grid place-items-center text-mut hover:text-ink"><Icon name="x" size={16} /></button>
+            </div>
+            <div className="p-6">
+              <div className="flex gap-1 bg-ink/5 p-1 mb-4">
+                {([["login", "Ingresar"], ["crear", "Crear cuenta"]] as const).map(([k, l]) => (
+                  <button key={k} onClick={() => { setAuthTab(k); setTurn("idle"); }} className={`flex-1 py-2 text-[12px] font-bold tracking-[0.12em] uppercase transition-all ${authTab === k ? "bg-card shadow-sm text-ink" : "text-mut"}`}>{l}</button>
+                ))}
+              </div>
+              <div className="space-y-2.5">
+                {authTab === "crear" && <input placeholder="Nombre" value={authF.nombre} onChange={(e) => setAuthF({ ...authF, nombre: e.target.value })} className="w-full bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />}
+                <input placeholder="Correo" value={authF.email} onChange={(e) => setAuthF({ ...authF, email: e.target.value })} className="w-full bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+                <input type="password" placeholder="Contraseña" value={authF.pass} onChange={(e) => setAuthF({ ...authF, pass: e.target.value })} className="w-full bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+                <button onClick={() => { setTurn("idle"); setTimeout(() => setTurn("checking"), 50); setTimeout(() => setTurn("ok"), 1000); }}
+                  className={`w-full flex items-center gap-2.5 border px-3.5 py-3 text-[12.5px] transition-colors ${turn === "ok" ? "border-moss/40 bg-mossl/40" : "border-line2 bg-card hover:border-line"}`}>
+                  <span className={`w-[18px] h-[18px] rounded-sm border grid place-items-center ${turn === "ok" ? "bg-moss border-moss text-paper" : "border-line2 bg-paper"}`}>
+                    {turn === "ok" && <Icon name="check" size={11} />}
+                  </span>
+                  <span className={turn === "ok" ? "text-[#41621f] font-semibold" : "text-mut"}>{turn === "checking" ? "Verificando…" : turn === "ok" ? "Verificado" : "Verifica que eres humano"}</span>
+                </button>
+                <button onClick={submitAuth} className="w-full bg-ink text-paper py-3.5 text-[12px] font-bold tracking-[0.16em] uppercase hover:bg-wine transition-colors">
+                  {authTab === "login" ? "Ingresar" : "Crear cuenta"}
+                </button>
               </div>
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {!cuenta && <p className="text-[12px] text-mut bg-winel border border-wine/15 px-3.5 py-2.5">Tu <b className="text-wine">cuenta se crea automáticamente</b> con la compra — sin formularios extra.</p>}
-            <div className="grid sm:grid-cols-2 gap-3">
-              <input placeholder="Nombre completo" value={co.nombre} onChange={(e) => setCo({ ...co, nombre: e.target.value })} className="bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-              <input placeholder="Correo" value={co.email} onChange={(e) => setCo({ ...co, email: e.target.value })} className="bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-              <select value={co.ciudad} onChange={(e) => setCo({ ...co, ciudad: e.target.value })} className="bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50">
-                {["Cuenca", "Quito", "Guayaquil", "Ambato", "Riobamba", "Manta"].map((c) => <option key={c}>{c}</option>)}
-              </select>
-              <input placeholder="Dirección de entrega" value={co.direccion} onChange={(e) => setCo({ ...co, direccion: e.target.value })} className="bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-            </div>
-            <div className="flex justify-between items-center border-t border-line pt-3">
-              <span className="text-[13px] text-mut">{cartCount} piezas · IVA incluido</span>
-              <span className="font-display font-bold text-[22px] num">{money(totalCart)}</span>
-            </div>
-            <button onClick={checkout} className="w-full bg-ink text-paper py-3.5 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors flex items-center justify-center gap-2"><Icon name="qr" size={15} /> Crear pedido y link de pago</button>
-          </div>
-        )}
-      </Modal>
-
-      {/* ── auth popup (Ingresar / Crear cuenta) ── */}
-      <Modal open={authOpen} onClose={() => setAuthOpen(false)} title="Tu cuenta">
-        <div className="-mt-4">
-          <div className="flex gap-1 bg-ink/5 p-1 rounded-sm mb-4">
-            {([["login", "Ingresar"], ["crear", "Crear cuenta"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => { setAuthTab(k); setTurn("idle"); }} className={`flex-1 py-2 text-[12px] font-bold tracking-[0.1em] uppercase transition-all ${authTab === k ? "bg-card shadow-sm text-ink" : "text-mut"}`}>{l}</button>
-            ))}
-          </div>
-          <div className="space-y-2.5">
-            {authTab === "crear" && <input placeholder="Nombre" value={auth.nombre} onChange={(e) => setAuth({ ...auth, nombre: e.target.value })} className="w-full bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />}
-            <input placeholder="Correo" value={auth.email} onChange={(e) => setAuth({ ...auth, email: e.target.value })} className="w-full bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-            <input type="password" placeholder="Contraseña" value={auth.pass} onChange={(e) => setAuth({ ...auth, pass: e.target.value })} className="w-full bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-            <button onClick={() => { setTurn("idle"); setTimeout(() => setTurn("checking"), 50); setTimeout(() => setTurn("ok"), 1000); }}
-              className={`w-full flex items-center gap-2.5 border rounded-sm px-3.5 py-2.5 text-[12.5px] transition-colors ${turn === "ok" ? "border-pine/40 bg-pinel/40" : "border-line2 bg-card hover:border-line"}`}>
-              <span className={`w-4.5 h-4.5 w-[18px] h-[18px] rounded-sm border grid place-items-center ${turn === "ok" ? "bg-pine border-pine text-paper" : "border-line2 bg-paper"}`}>
-                {turn === "ok" && <Icon name="check" size={11} />}
-              </span>
-              <span className={turn === "ok" ? "text-pined font-semibold" : "text-mut"}>{turn === "checking" ? "Verificando…" : turn === "ok" ? "Verificado" : "Verifica que eres humano"}</span>
-            </button>
-            <button onClick={submitAuth} className="w-full bg-ink text-paper py-3 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-wine transition-colors">
-              {authTab === "login" ? "Ingresar" : "Crear cuenta"}
-            </button>
-            <p className="text-center text-[10.5px] text-fog">Protegido por Turnstile en producción · LOPDP Ecuador</p>
-          </div>
         </div>
-      </Modal>
+      )}
 
       {/* ── newsletter 5% ── */}
-      <Modal open={newsOpen} onClose={() => setNewsOpen(false)} title="Únete a nosotros">
-        <div className="-mt-4 text-center">
-          <div className="font-display font-semibold text-[46px] text-wine leading-none">5%</div>
-          <div className="font-mono text-[10px] tracked uppercase text-fog mt-1">de descuento</div>
-          <p className="text-[13.5px] text-mut mt-3">Únete a nuestra lista y obtén tu cupón ahora mismo para tu primera compra.</p>
-          <div className="space-y-2.5 mt-5 text-left">
-            <input placeholder="Nombre" className="w-full bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-            <input placeholder="Correo" className="w-full bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-            <input type="date" className="w-full bg-card border border-line2 rounded-sm px-3.5 py-2.5 text-[13.5px] outline-none focus:border-wine/50" />
-            <div className="flex gap-4 text-[12.5px] text-mut px-1"><span className="text-[10px] uppercase tracked text-fog self-center">Quiero recibir:</span><label className="flex items-center gap-1.5"><input type="checkbox" defaultChecked className="accent-[#800000]" /> Blog</label><label className="flex items-center gap-1.5"><input type="checkbox" className="accent-[#800000]" /> Studio</label></div>
-            <button onClick={() => { setNewsOpen(false); toast("Cupón 5% dcto enviado a tu correo"); }} className="w-full bg-wine text-paper py-3 text-[12px] font-bold tracking-[0.14em] uppercase hover:bg-ink transition-colors">Unirme</button>
-            <p className="text-center text-[10px] text-fog">Acepto recibir novedades y promociones · doble opt-in</p>
-          </div>
-        </div>
-      </Modal>
-
-      {/* ── artículo ── */}
-      <Modal open={!!artOpen} onClose={() => setArtOpen(null)} title={artOpen?.cat ?? "Diario"} wide>
-        {artOpen && (
-          <div className="-mt-3 max-w-2xl">
-            <h2 className="font-display font-medium text-[34px] leading-[1.08] text-ink">{artOpen.titulo}</h2>
-            <div className="text-[12.5px] text-fog mt-2">{artOpen.min} min de lectura</div>
-            <Thumb src={artOpen.img} alt={artOpen.titulo} className="w-full h-64 mt-5" />
-            <div className="space-y-4 mt-6">
-              {artOpen.cuerpo.map((p, i) => <p key={i} className={`text-[15px] leading-relaxed text-ink/80 ${i === 0 ? "first-letter:font-display first-letter:text-[44px] first-letter:float-left first-letter:mr-2 first-letter:leading-[0.85] first-letter:text-wine" : ""}`}>{p}</p>)}
+      {newsOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+          <div className="absolute inset-0 bg-night/55" onClick={() => setNewsOpen(false)} />
+          <div className="relative bg-card border border-line shadow-2xl w-full max-w-md anim-pop p-7 text-center">
+            <button onClick={() => setNewsOpen(false)} className="absolute top-3 right-3 w-9 h-9 grid place-items-center text-mut hover:text-ink"><Icon name="x" size={16} /></button>
+            <div className="font-display font-semibold text-[52px] text-wine leading-none">5%</div>
+            <div className="text-[10px] uppercase tracking-[0.24em] text-fog mt-1">de descuento</div>
+            <p className="text-[14px] text-mut mt-3">{cfg.newsletterSub}</p>
+            <div className="space-y-2.5 mt-6 text-left">
+              <input placeholder="Nombre" className="w-full bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+              <input placeholder="Correo" className="w-full bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+              <input type="date" className="w-full bg-card border border-line2 px-3.5 py-3 text-[13.5px] outline-none focus:border-wine/50" />
+              <button onClick={() => { setNewsOpen(false); toast("Cupón 5% dcto enviado a tu correo"); }} className="w-full bg-wine text-paper py-3.5 text-[12px] font-bold tracking-[0.16em] uppercase hover:bg-ink transition-colors">Unirme</button>
             </div>
           </div>
-        )}
-      </Modal>
-    </div>
-  );
-}
-
-function CardProducto({ p, liked, onLike, onOpen, onAdd }: { p: Pub; liked: boolean; onLike: () => void; onOpen: () => void; onAdd: () => void }) {
-  return (
-    <div className="group cursor-pointer anim-up" onClick={onOpen}>
-      <div className="relative overflow-hidden rounded-sm bg-[#ece5d8]">
-        {p.img ? <Thumb src={p.img} alt={p.nombre} className="w-full h-[250px] group-hover:scale-[1.05] transition-transform duration-700" /> : <SinImagen nombre={p.nombre} className="w-full h-[250px]" />}
-        {/* me gusta — sutil, siempre visible */}
-        <button onClick={(e) => { e.stopPropagation(); onLike(); }} title="Me gusta"
-          className={`absolute top-3 right-3 w-8 h-8 grid place-items-center rounded-full backdrop-blur transition-colors ${liked ? "bg-wine text-paper" : "bg-paper/70 text-ink/60 hover:text-wine"}`}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8"><path d="M12 20.5s-8.2-5-8.2-11A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.2 2.9c0 6-8.2 11-8.2 11z" /></svg>
-        </button>
-        {/* variables + añadir: aparecen al pasar el puntero */}
-        <div className="absolute bottom-0 left-0 right-0 bg-paper/95 backdrop-blur px-3 py-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5" title={p.vars.map((v) => v.n).join(" · ")}>
-            {p.vars.slice(0, 5).map((v) => <span key={v.n} className="w-3.5 h-3.5 rounded-full border border-ink/15" style={{ background: v.c }} />)}
-          </div>
-          <button onClick={(e) => { e.stopPropagation(); onAdd(); }}
-            className="bg-night text-paper px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] uppercase hover:bg-wine transition-colors">
-            Añadir
-          </button>
         </div>
-      </div>
-      {/* solo nombre y precio */}
-      <div className="pt-3.5 flex items-baseline justify-between gap-3">
-        <div className="font-display font-semibold text-[18px] text-ink leading-tight group-hover:text-wine transition-colors">{p.nombre}</div>
-        <div className="font-mono num text-[14px] font-semibold shrink-0">{money(p.precio)}</div>
-      </div>
-    </div>
-  );
-}
+      )}
 
-function TeaserDiario({ a, onOpen, grande }: { a: (typeof DIARIO)[0]; onOpen: () => void; grande?: boolean }) {
-  return (
-    <article className={`group cursor-pointer ${grande ? "flex flex-col" : ""}`} onClick={onOpen}>
-      <div className="overflow-hidden rounded-sm">
-        <Thumb src={a.img} alt={a.titulo} className={`w-full ${grande ? "h-[240px]" : "h-[200px]"} group-hover:scale-[1.05] transition-transform duration-700`} />
-      </div>
-      <div className="pt-4">
-        <div className="text-[11px] font-semibold text-wine">{a.cat}</div>
-        <h3 className={`font-display font-semibold leading-snug mt-1.5 group-hover:text-wine transition-colors ${grande ? "text-[26px]" : "text-[21px]"}`}>{a.titulo}</h3>
-        <div className="text-[12px] text-fog mt-1.5">{a.min} min de lectura</div>
-      </div>
-    </article>
+      {/* puente al panel (solo para ti, no para el cliente) */}
+      {state.session.user && (
+        <button onClick={() => nav("dashboard")} title="Ir al panel interno"
+          className="fixed bottom-5 right-5 z-40 w-11 h-11 rounded-full bg-night text-paper grid place-items-center shadow-xl hover:bg-wine transition-colors">
+          <Icon name="gear" size={17} />
+        </button>
+      )}
+    </div>
   );
 }

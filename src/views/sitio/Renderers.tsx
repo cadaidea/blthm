@@ -9,7 +9,7 @@ export interface WebCtx {
   cms: AppState["cms"];
   likes: string[];
   toggleLike: (id: string) => void;
-  addCart: (p: ProductoWeb, n: number) => void;
+  addCart: (p: ProductoWeb, n: number, vari?: string) => void;
   openNews: () => void;
   openAuth: () => void;
   cuenta: string | null;
@@ -19,7 +19,7 @@ export interface WebCtx {
 
 export function SinImagen({ className }: { className?: string }) {
   return (
-    <div className={`grid place-items-center bg-[#ece5d8] ${className ?? ""}`}>
+    <div className={`grid place-items-center bg-[#ececea] ${className ?? ""}`}>
       <div className="font-display font-semibold text-[42px] text-ink/20 leading-none">B.</div>
     </div>
   );
@@ -39,7 +39,7 @@ export function CardProducto({ p, ctx }: { p: ProductoWeb; ctx: WebCtx }) {
   const liked = ctx.likes.includes(p.id);
   return (
     <div className="group cursor-pointer anim-up" onClick={() => ctx.go(`/producto/${p.slug}`)}>
-      <div className="relative overflow-hidden bg-[#ece5d8]">
+      <div className="relative overflow-hidden bg-[#ececea]">
         {p.img ? (
           <Thumb src={p.img} alt={p.nombre} className="w-full h-[300px] group-hover:scale-[1.04] transition-transform duration-700" />
         ) : (

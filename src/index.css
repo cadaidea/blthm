@@ -24,16 +24,16 @@
   --font-serif: "Cormorant Garamond", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* base hueso/tinta — calma visual (modo día) */
-  --color-paper: #f2eee6;
-  --color-card: #fbf8f2;
-  --color-ink: #1d1712;
-  --color-ink2: #2c241d;
-  --color-ink3: #3a3128;
-  --color-mut: #6f675b;
-  --color-fog: #a79e8f;
-  --color-line: #e2dbcd;
-  --color-line2: #d2c8b6;
+  /* base blanco/tinta neutra — modo día (ejecutivo, sin crema) */
+  --color-paper: #ffffff;
+  --color-card: #ffffff;
+  --color-ink: #1f1f1d;
+  --color-ink2: #2b2b28;
+  --color-ink3: #383835;
+  --color-mut: #6c6c66;
+  --color-fog: #a1a19a;
+  --color-line: #e7e7e2;
+  --color-line2: #d8d8d2;
 
   /* marca — uso puntual */
   --color-wine: #800000;
@@ -85,9 +85,9 @@ body {
 
 ::selection { background: rgba(128, 0, 0, 0.16); }
 
-* { scrollbar-width: thin; scrollbar-color: #c9bfae transparent; }
+* { scrollbar-width: thin; scrollbar-color: #c8c8c2 transparent; }
 *::-webkit-scrollbar { width: 9px; height: 9px; }
-*::-webkit-scrollbar-thumb { background: #c9bfae; border-radius: 9px; }
+*::-webkit-scrollbar-thumb { background: #c8c8c2; border-radius: 9px; }
 
 @keyframes feedIn { from { opacity: 0; transform: translateY(-7px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
