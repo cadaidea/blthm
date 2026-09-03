@@ -1,6 +1,6 @@
 export type View =
   | "dashboard" | "pim" | "oms" | "crm" | "taller" | "bom" | "logistica"
-  | "cobros" | "dam" | "contabilidad" | "accesos" | "seguridad" | "ajustes" | "web";
+  | "cobros" | "dam" | "contabilidad" | "accesos" | "seguridad" | "ajustes" | "web" | "contenido";
 
 export type Warehouse = "showroom" | "bodega" | "taller";
 
@@ -123,6 +123,40 @@ export interface NotaCredito {
   date: string; motivo: string; amount: number;
 }
 
+/* ── CMS: el contenido de la web vive aquí y se edita en "Contenido web" ── */
+export type Bloque =
+  | { id: string; tipo: "hero"; titulo: string; sub: string; img: string; cta: string; ctaTarget: string }
+  | { id: string; tipo: "texto"; titulo: string; cuerpo: string }
+  | { id: string; tipo: "imagen"; img: string; pie: string }
+  | { id: string; tipo: "columnas"; titulo: string; cols: { t: string; d: string }[] }
+  | { id: string; tipo: "lista"; titulo: string; items: { t: string; d: string }[] }
+  | { id: string; tipo: "quote"; texto: string };
+
+export interface PaginaWeb {
+  id: string; slug: string; titulo: string; enNav: boolean;
+  estado: "publicada" | "borrador"; seoTitle: string; seoDesc: string; bloques: Bloque[];
+}
+
+export interface PostBlog {
+  id: string; slug: string; titulo: string; categoria: string; etiquetas: string[];
+  extracto: string; cuerpo: string[]; img: string; min: number; fecha: string;
+  estado: "publicado" | "borrador";
+}
+
+export interface ProductoWeb {
+  id: string; slug: string; nombre: string; precio: number; cat: string;
+  img: string; destacado: boolean; novedad: boolean; vt: string;
+  vars: { n: string; c: string }[]; desc: string; detalles: string[];
+  estado: "activo" | "oculto";
+}
+
+export interface CmsConfig {
+  anuncio: string; anuncioVisible: boolean;
+  nav: { label: string; target: string }[];
+  contacto: { direccion: string; telefono: string; email: string; horario: string };
+  newsletterTitulo: string; newsletterSub: string;
+}
+
 export interface Despacho {
   id: string; code: string; orderId: string; orderCode: string; customer: string; city: string;
   transportId: string; placa: string; conductor: string; motivo: "venta" | "traslado";
@@ -196,5 +230,6 @@ export interface AppState {
   team: TeamMember[];
   cuentas: Cuenta[];
   settings: Settings;
+  cms: { config: CmsConfig; paginas: PaginaWeb[]; posts: PostBlog[]; productos: ProductoWeb[] };
   session: SessionInfo;
 }
