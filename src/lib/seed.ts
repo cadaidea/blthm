@@ -1,5 +1,6 @@
 import type { AppState, TraceEntry } from "./types";
 import { daysAgoIso, inDaysIso } from "./util";
+import { cmsSeed } from "./cmsSeed";
 
 const tr = (days: number, hour: number, user: string, msg: string): TraceEntry => ({
   ts: daysAgoIso(days, hour), user, msg,
@@ -261,5 +262,6 @@ export const seedState = (): AppState => ({
     { id: "cu1", nombre: "María Fernanda Icaza", email: "mficaza@gmail.com", ciudad: "Quito", desde: daysAgoIso(400), cupon: "5% dcto primera compra" },
     { id: "cu2", nombre: "Hotel Plaza Grande Suites", email: "ffurnish@plazagrande.ec", ciudad: "Quito", desde: daysAgoIso(320), cupon: null },
   ],
+  cms: cmsSeed,
   session: { events: 5, salesToday: 5092.2, peakEps: 0, startedAt: Date.now(), user: null },
 });

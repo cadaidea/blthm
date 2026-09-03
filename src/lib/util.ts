@@ -91,6 +91,15 @@ export const downloadCsv = (filename: string, header: string[], rows: (string | 
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 };
 
+/* Genera slugs como WordPress: "Cuánto dura un mueble" → "cuanto-dura-un-mueble" */
+export const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 export const initials = (name: string) =>
   name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
 

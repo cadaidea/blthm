@@ -18,6 +18,7 @@ import Seguridad from "./views/Seguridad";
 import Ajustes from "./views/Ajustes";
 import Sitio from "./views/Sitio";
 import Login from "./views/Login";
+import Contenido from "./views/Contenido";
 
 function Splash({ done }: { done: boolean }) {
   return (
@@ -95,6 +96,7 @@ function Workspace() {
         {view === "accesos" && <Accesos key={`s${visit}`} />}
         {view === "seguridad" && <Seguridad key={`g${visit}`} />}
         {view === "ajustes" && <Ajustes key={`j${visit}`} />}
+        {view === "contenido" && <Contenido key={`n${visit}`} />}
       </Shell>
       <ToastHost toasts={toasts} />
     </>

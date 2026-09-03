@@ -44,13 +44,16 @@ const NAV: { group: string; items: { id: View; label: string; icon: string }[] }
   },
   {
     group: "Canal digital",
-    items: [{ id: "web", label: "Sitio público", icon: "ext" }],
+    items: [
+      { id: "web", label: "Sitio público", icon: "ext" },
+      { id: "contenido", label: "Contenido web · CMS", icon: "edit" },
+    ],
   },
 ];
 
 /* Acceso por rol — igual que el /dash de upgrade.bletia.ec: cada colaborador ve solo su área, gerencia todo */
 export const ROLE_ACCESS: Record<RoleInterno, View[]> = {
-  gerencia: ["dashboard", "oms", "logistica", "taller", "bom", "crm", "cobros", "pim", "dam", "contabilidad", "accesos", "seguridad", "ajustes", "web"],
+  gerencia: ["dashboard", "oms", "logistica", "taller", "bom", "crm", "cobros", "pim", "dam", "contabilidad", "accesos", "seguridad", "ajustes", "web", "contenido"],
   vendedor: ["dashboard", "oms", "pim", "crm", "cobros", "web"],
   bodega: ["dashboard", "oms", "logistica", "pim", "bom"],
   taller: ["dashboard", "taller", "bom", "logistica", "pim"],

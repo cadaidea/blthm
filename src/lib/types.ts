@@ -130,7 +130,12 @@ export type Bloque =
   | { id: string; tipo: "imagen"; img: string; pie: string }
   | { id: string; tipo: "columnas"; titulo: string; cols: { t: string; d: string }[] }
   | { id: string; tipo: "lista"; titulo: string; items: { t: string; d: string }[] }
-  | { id: string; tipo: "quote"; texto: string };
+  | { id: string; tipo: "quote"; texto: string }
+  | { id: string; tipo: "colecciones" }
+  | { id: string; tipo: "novedades" }
+  | { id: string; tipo: "destacado" }
+  | { id: string; tipo: "diario" }
+  | { id: string; tipo: "newsletter" };
 
 export interface PaginaWeb {
   id: string; slug: string; titulo: string; enNav: boolean;
@@ -151,11 +156,17 @@ export interface ProductoWeb {
 }
 
 export interface CmsConfig {
+  logo: string;
+  fondo: string; /* color de fondo de toda la web pública — por defecto #ffffff */
   anuncio: string; anuncioVisible: boolean;
   nav: { label: string; target: string }[];
+  footer: { titulo: string; links: { label: string; target: string }[] }[];
+  copyright: string;
   contacto: { direccion: string; telefono: string; email: string; horario: string };
   newsletterTitulo: string; newsletterSub: string;
 }
+
+export interface Redireccion { de: string; a: string; ts: string; }
 
 export interface Despacho {
   id: string; code: string; orderId: string; orderCode: string; customer: string; city: string;
@@ -230,6 +241,6 @@ export interface AppState {
   team: TeamMember[];
   cuentas: Cuenta[];
   settings: Settings;
-  cms: { config: CmsConfig; paginas: PaginaWeb[]; posts: PostBlog[]; productos: ProductoWeb[] };
+  cms: { config: CmsConfig; paginas: PaginaWeb[]; posts: PostBlog[]; productos: ProductoWeb[]; redirects: Redireccion[] };
   session: SessionInfo;
 }

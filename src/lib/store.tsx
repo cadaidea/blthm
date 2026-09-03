@@ -339,6 +339,41 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, session: { ...s.session, user: null } };
     case "ADD_CUENTA":
       return { ...s, cuentas: [a.cuenta, ...s.cuentas] };
+    /* ── CMS: páginas, blog y productos de la web pública ── */
+    case "CMS_CONFIG":
+      return { ...s, cms: { ...s.cms, config: { ...s.cms.config, ...a.patch } } };
+    case "CMS_PAGE": {
+      const prev = s.cms.paginas.find((p) => p.id === a.page.id);
+      const redirects = prev && prev.slug !== a.page.slug ? [...s.cms.redirects, { de: `/${prev.slug}`, a: `/${a.page.slug}`, ts: new Date().toISOString() }] : s.cms.redirects;
+      const paginas = prev ? s.cms.paginas.map((p) => (p.id === a.page.id ? a.page : p)) : [...s.cms.paginas, a.page];
+      return { ...s, cms: { ...s.cms, paginas, redirects }, events: [mkEvent("web", `Página "${a.page.titulo}" publicada en /${a.page.slug}${prev && prev.slug !== a.page.slug ? ` (redirección desde /${prev.slug})` : ""}`), ...s.events].slice(0, 90) };
+    }
+    case "CMS_POST": {
+      const prev = s.cms.posts.find((p) => p.id === a.post.id);
+      const catSlug = (c: string) => c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      let redirects = s.cms.redirects;
+      if (prev && (prev.slug !== a.post.slug || prev.categoria !== a.post.categoria)) {
+        redirects = [...redirects, { de: `/${catSlug(prev.categoria)}/${prev.slug}`, a: `/${catSlug(a.post.categoria)}/${a.post.slug}`, ts: new Date().toISOString() }];
+      }
+      const posts = prev ? s.cms.posts.map((p) => (p.id === a.post.id ? a.post : p)) : [a.post, ...s.cms.posts];
+      return { ...s, cms: { ...s.cms, posts, redirects }, events: [mkEvent("web", `Entrada "${a.post.titulo}" publicada en /${catSlug(a.post.categoria)}/${a.post.slug}`), ...s.events].slice(0, 90) };
+    }
+    case "CMS_PRODUCT": {
+      const prev = s.cms.productos.find((p) => p.id === a.prod.id);
+      const redirects = prev && prev.slug !== a.prod.slug ? [...s.cms.redirects, { de: `/producto/${prev.slug}`, a: `/producto/${a.prod.slug}`, ts: new Date().toISOString() }] : s.cms.redirects;
+      const productos = prev ? s.cms.productos.map((p) => (p.id === a.prod.id ? a.prod : p)) : [...s.cms.productos, a.prod];
+      return { ...s, cms: { ...s.cms, productos, redirects }, events: [mkEvent("web", `Producto "${a.prod.nombre}" publicado en /producto/${a.prod.slug}`), ...s.events].slice(0, 90) };
+    }
+    case "CMS_DEL":
+      return {
+        ...s,
+        cms: {
+          ...s.cms,
+          paginas: a.kind === "pagina" ? s.cms.paginas.filter((x) => x.id !== a.id) : s.cms.paginas,
+          posts: a.kind === "post" ? s.cms.posts.filter((x) => x.id !== a.id) : s.cms.posts,
+          productos: a.kind === "producto" ? s.cms.productos.filter((x) => x.id !== a.id) : s.cms.productos,
+        },
+      };
     case "SETTINGS":
       return { ...s, settings: { ...s.settings, ...a.patch } };
     case "UPLOAD_MEDIA":
