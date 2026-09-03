@@ -12,7 +12,7 @@ import { CuentaView, DiarioView, NotFound, PaginaView, PostView, ProductoView, S
 /* ── enrutador por hash: la URL existe de verdad (#/tienda, #/diy/slug…) ── */
 type Route =
   | { k: "home" }
-  | { k: "tienda"; cat: string | null }
+  | { k: "tienda"; cat: string | null; tag: string | null }
   | { k: "producto"; slug: string }
   | { k: "diario"; cat: string | null; tag: string | null }
   | { k: "post"; cat: string; slug: string }

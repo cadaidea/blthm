@@ -76,6 +76,7 @@ export const cmsSeed: AppState["cms"] = {
     },
     newsletterTitulo: "Sé la primera persona en recibir novedades de Bletia",
     newsletterSub: "Únete a nuestra lista y obtén un cupón para tu primera compra.",
+    categorias: ["Sofás", "Sillones", "Piezas", "Centros", "Veladores", "Tips", "Decoración", "Tendencias", "DIY"],
   },
   paginas: [
     {

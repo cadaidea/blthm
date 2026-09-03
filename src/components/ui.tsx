@@ -45,6 +45,9 @@ const P: Record<string, ReactNode> = {
   package: <><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9z" /><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M7.7 5.2l8.6 4.6" /></>,
   brush: <><path d="m14.5 4 5.5 5.5-8.5 8.5c-1.5 1.5-4 1.5-5.5 0s-1.5-4 0-5.5L14.5 4z" /><path d="m12 6.5 5.5 5.5M4.5 20.5c1.5 0 2.5-1 2.5-2.5" /></>,
   pin: <><path d="M12 21s-6.5-5.4-6.5-10.3A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.7C18.5 15.6 12 21 12 21z" /><circle cx="12" cy="10.5" r="2.2" /></>,
+  sun: <><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M19.1 4.9l-1.6 1.6M6.5 17.5l-1.6 1.6" /></>,
+  moon: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />,
+  monitor: <><rect x="3" y="4.5" width="18" height="12.5" rx="1.5" /><path d="M9 20.5h6M12 17v3.5" /></>,
   heart: <path d="M12 20.5S3.5 15 3.5 8.9A4.6 4.6 0 0 1 12 6.4a4.6 4.6 0 0 1 8.5 2.5c0 6.1-8.5 11.6-8.5 11.6z" />,
   cart: <><circle cx="9" cy="20" r="1.4" /><circle cx="17.5" cy="20" r="1.4" /><path d="M3 3.5h2.2l2.3 11h10.6l2-7.5H6.3" /></>,
   minus: <path d="M5.5 12h13" />,
@@ -95,10 +98,10 @@ export function CopyBtn({ text, label, size = "sm", icon = "copy", variant = "ou
 
 /* ---------------------------------- badge ---------------------------------- */
 const TONES: Record<string, string> = {
-  pine: "bg-pinel text-pined border-pine/25",
+  pine: "bg-pinel text-pinet border-pine/25",
   oak: "bg-oakl text-oakd border-oak/30",
   steel: "bg-steell text-steel border-steel/25",
-  moss: "bg-mossl text-[#41621f] border-moss/30",
+  moss: "bg-mossl text-mossd border-moss/30",
   brick: "bg-brickl text-brick border-brick/25",
   fog: "bg-ink/5 text-mut border-ink/10",
 };

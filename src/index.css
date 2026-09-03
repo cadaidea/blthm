@@ -43,6 +43,7 @@
   --color-pine: #4c6650;
   --color-pined: #38503d;
   --color-pinel: #e4e9de;
+  --color-pinet: #38503d;
   --color-oak: #a9782c;
   --color-oakd: #855c1b;
   --color-oakl: #f2e7d0;
@@ -52,27 +53,40 @@
   --color-brickl: #f1ddd4;
   --color-moss: #6e8144;
   --color-mossl: #e8ecd8;
+  --color-mossd: #41621f;
   --color-night: #171310;
   --color-night2: #211b16;
 }
 
-/* Modo noche */
+/* Modo noche — ergonomía tipo Google: gris neutro (nunca negro puro), texto claro
+   pero no blanco puro, capas sutiles y acentos desaturados para mitigar la fatiga visual */
 .dark {
-  --color-paper: #171512;
-  --color-card: #201d18;
-  --color-ink: #efe9dd;
-  --color-ink2: #e4ddcf;
-  --color-ink3: #d6cdbb;
-  --color-mut: #a89f8f;
-  --color-fog: #7d7466;
-  --color-line: #322d25;
-  --color-line2: #3d372d;
-  --color-winel: #3a1f1f;
-  --color-pinel: #28312a;
-  --color-oakl: #38301f;
-  --color-steell: #26303a;
-  --color-brickl: #3a2520;
-  --color-mossl: #2e3524;
+  --color-paper: #161616;
+  --color-card: #1f1f1f;
+  --color-ink: #e6e4e0;
+  --color-ink2: #dad8d3;
+  --color-ink3: #c8c6c1;
+  --color-mut: #a2a09b;
+  --color-fog: #74726d;
+  --color-line: #2e2e2e;
+  --color-line2: #3c3c3c;
+  --color-wine: #b04a4a;
+  --color-winel: #33201f;
+  --color-pine: #7fae8c;
+  --color-pinel: #24322b;
+  --color-pinet: #a3cbae;
+  --color-oak: #c99a4e;
+  --color-oakl: #33291a;
+  --color-oakd: #d8ab62;
+  --color-steel: #8fb0c6;
+  --color-steell: #22303a;
+  --color-brick: #c96a52;
+  --color-brickl: #352320;
+  --color-moss: #a3bf72;
+  --color-mossl: #27301d;
+  --color-mossd: #b3c98a;
+  --color-night: #111111;
+  --color-night2: #1c1c1c;
 }
 
 html { font-family: var(--font-body); }
@@ -134,3 +148,6 @@ body {
 
 .num { font-variant-numeric: tabular-nums; }
 .tracked { letter-spacing: 0.28em; }
+
+/* acentos verdes escritos como hex en las vistas → legibles también en modo noche */
+.dark [class*="text-[#41621f]"] { color: var(--color-mossd) !important; }

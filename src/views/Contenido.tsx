@@ -26,7 +26,8 @@ const BLOQUE_LABEL: Record<Bloque["tipo"], string> = {
 export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void }) {
   const { state, dispatch, toast } = useStore();
   const cms = state.cms;
-  const [tab, setTab] = useState<"paginas" | "blog" | "productos" | "sitio">("paginas");
+  const [tab, setTab] = useState<"paginas" | "blog" | "productos" | "tax" | "sitio">("paginas");
+  const [nuevaCat, setNuevaCat] = useState("");
 
   /* ── editores en curso ── */
   const [pgDraft, setPgDraft] = useState<PaginaWeb | null>(null);
@@ -36,9 +37,27 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
   const [prodDraft, setProdDraft] = useState<ProductoWeb | null>(null);
   const [prodSlugTouched, setProdSlugTouched] = useState(false);
 
-  const categorias = useMemo(() => Array.from(new Set(cms.posts.map((p) => p.categoria))), [cms.posts]);
-  const etiquetas = useMemo(() => Array.from(new Set(cms.posts.flatMap((p) => p.etiquetas))).sort(), [cms.posts]);
-  const catsProd = useMemo(() => Array.from(new Set(cms.productos.map((p) => p.cat))), [cms.productos]);
+  /* registro único de categorías: config ∪ las que ya se usan (entradas y productos) */
+  const categorias = useMemo(
+    () => Array.from(new Set([...cms.config.categorias, ...cms.posts.map((p) => p.categoria), ...cms.productos.map((p) => p.cat)])),
+    [cms]
+  );
+  /* etiquetas existentes: entradas + productos (para el autocompletar) */
+  const etiquetas = useMemo(
+    () => Array.from(new Set([...cms.posts.flatMap((p) => p.etiquetas), ...cms.productos.flatMap((p) => p.etiquetas ?? [])])).sort(),
+    [cms]
+  );
+  const usoCat = (c: string) => cms.posts.filter((p) => p.categoria === c).length + cms.productos.filter((p) => p.cat === c).length;
+  const usoTag = (t: string) => cms.posts.filter((p) => p.etiquetas.includes(t)).length + cms.productos.filter((p) => (p.etiquetas ?? []).includes(t)).length;
+
+  const crearCategoria = (nombre: string) => {
+    const c = nombre.trim();
+    if (!c) return;
+    if (categorias.some((x) => x.toLowerCase() === c.toLowerCase())) return toast("Esa categoría ya existe", "warn");
+    dispatch({ type: "CMS_CONFIG", patch: { categorias: [...cms.config.categorias, c] } });
+    toast(`Categoría "${c}" creada — ya puedes elegirla`);
+    setNuevaCat("");
+  };
 
   /* ══ PÁGINAS (Wix) ══ */
   const savePage = () => {
@@ -87,7 +106,7 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
       </div>
 
       <Tabs
-        tabs={[{ id: "paginas", label: "Páginas · Wix" }, { id: "blog", label: "Blog · WordPress" }, { id: "productos", label: "Productos · Shopify" }, { id: "sitio", label: "Sitio & menú" }]}
+        tabs={[{ id: "paginas", label: "Páginas" }, { id: "blog", label: "Blog & entradas" }, { id: "productos", label: "Productos" }, { id: "tax", label: "Categorías & etiquetas" }, { id: "sitio", label: "Sitio & menú" }]}
         value={tab} onChange={(t) => setTab(t as typeof tab)}
       />
 
@@ -169,7 +188,7 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
       {/* ═══════════ PRODUCTOS ═══════════ */}
       {tab === "productos" && (
         <div className="space-y-3 anim-up">
-          <div className="flex justify-end"><Btn icon="plus" onClick={() => { setProdSlugTouched(false); setProdDraft({ id: uid(), slug: "", nombre: "", precio: 0, cat: catsProd[0] ?? "Sofás", img: "", destacado: false, novedad: true, vt: "Tapiz", vars: [], desc: "", detalles: [], estado: "activo" }); }}>Nuevo producto</Btn></div>
+          <div className="flex justify-end"><Btn icon="plus" onClick={() => { setProdSlugTouched(false); setProdDraft({ id: uid(), slug: "", nombre: "", precio: 0, cat: categorias[0] ?? "Sofás", etiquetas: [], img: "", destacado: false, novedad: true, vt: "Tapiz", vars: [], desc: "", detalles: [], estado: "activo" }); }}>Nuevo producto</Btn></div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 stagger">
             {cms.productos.map((p) => (
               <div key={p.id} className="bg-card border border-line rounded-xl overflow-hidden hover:shadow-md transition-all group">
@@ -195,11 +214,60 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
         </div>
       )}
 
+      {/* ═══════════ CATEGORÍAS & ETIQUETAS ═══════════ */}
+      {tab === "tax" && (
+        <div className="grid lg:grid-cols-2 gap-4 anim-up">
+          <Card>
+            <SectionTitle kicker="Registro único" title="Categorías" right={<Badge tone="pine">{categorias.length}</Badge>} />
+            <p className="text-[12px] text-mut -mt-1 mb-3">Las creas una vez aquí y luego solo las <b className="text-ink">eliges</b> al editar entradas y productos. Sirven para ambas cosas.</p>
+            <div className="flex gap-2 mb-3">
+              <Input value={nuevaCat} onChange={(e) => setNuevaCat(e.target.value)} onKeyDown={(e) => e.key === "Enter" && crearCategoria(nuevaCat)} placeholder="Nueva categoría… (ej: Exteriores)" />
+              <Btn icon="plus" onClick={() => crearCategoria(nuevaCat)}>Crear</Btn>
+            </div>
+            <div className="space-y-1.5">
+              {categorias.map((c) => {
+                const n = usoCat(c);
+                return (
+                  <div key={c} className="flex items-center gap-2.5 border border-line rounded-lg px-3 py-2 hover:border-pine/40 transition-colors">
+                    <Badge tone="oak">{c}</Badge>
+                    <span className="font-mono text-[10.5px] text-fog">/{slugify(c)}</span>
+                    <span className="ml-auto text-[11px] text-mut">{n} {n === 1 ? "uso" : "usos"}</span>
+                    {n === 0 && (
+                      <button
+                        onClick={() => { dispatch({ type: "CMS_CONFIG", patch: { categorias: cms.config.categorias.filter((x) => x !== c) } }); toast(`Categoría "${c}" eliminada`, "warn"); }}
+                        className="text-fog hover:text-brick transition-colors" aria-label={`eliminar ${c}`}><Icon name="x" size={13} /></button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+          <Card>
+            <SectionTitle kicker="Se crean al vuelo" title="Etiquetas en uso" right={<Badge tone="steel">{etiquetas.length}</Badge>} />
+            <p className="text-[12px] text-mut -mt-1 mb-3">No se crean aquí: al escribir en una entrada o producto <b className="text-ink">aparecen las existentes</b> y, si no está, la creas ahí mismo. Este es el inventario.</p>
+            {etiquetas.length === 0 ? (
+              <div className="text-[12.5px] text-fog py-6 text-center">Aún sin etiquetas. Edita una entrada o producto y escribe la primera.</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {etiquetas.map((t) => (
+                  <span key={t} className="flex items-center gap-1.5 border border-line rounded-lg pl-2.5 pr-2 py-1.5 font-mono text-[11.5px] text-steel hover:border-steel/50 transition-colors">
+                    #{t}<span className="text-fog text-[10px]">×{usoTag(t)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="mt-5 rounded-lg bg-pinel/50 border border-pine/20 px-3.5 py-3 text-[12px] text-pined leading-relaxed">
+              <b>Cómo se usan en la web:</b> las categorías generan URLs <span className="font-mono text-[11px]">/categoria/sofas</span> y <span className="font-mono text-[11px]">/tips/slug-de-entrada</span>; las etiquetas filtran el diario con <span className="font-mono text-[11px]">/diario?tag=madera</span>.
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* ═══════════ SITIO & MENÚ ═══════════ */}
       {tab === "sitio" && <SitioSettings />}
 
       {/* ── drawer página (Wix) ── */}
-      <Drawer open={!!pgDraft} onClose={() => setPgDraft(null)} kicker="Editor de página · Wix" title={pgDraft?.titulo || "Nueva página"}>
+      <Drawer open={!!pgDraft} onClose={() => setPgDraft(null)} kicker="Editor de página · bloques" title={pgDraft?.titulo || "Nueva página"}>
         {pgDraft && (
           <div className="space-y-4">
             <Field label="Título"><Input value={pgDraft.titulo} onChange={(e) => { const t = e.target.value; setPgDraft({ ...pgDraft, titulo: t, slug: pgSlugTouched ? pgDraft.slug : slugify(t) }); }} /></Field>
@@ -247,16 +315,25 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
       </Drawer>
 
       {/* ── drawer entrada (WordPress) ── */}
-      <Drawer open={!!postDraft} onClose={() => setPostDraft(null)} kicker="Editor de entrada · WordPress" title={postDraft?.titulo || "Nueva entrada"}>
+      <Drawer open={!!postDraft} onClose={() => setPostDraft(null)} kicker="Editor de entrada · blog" title={postDraft?.titulo || "Nueva entrada"}>
         {postDraft && (
           <div className="space-y-4">
             <Field label="Título"><Input value={postDraft.titulo} onChange={(e) => { const t = e.target.value; setPostDraft({ ...postDraft, titulo: t, slug: postSlugTouched ? postDraft.slug : slugify(t) }); }} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="URL (slug)"><Input value={postDraft.slug} onChange={(e) => { setPostSlugTouched(true); setPostDraft({ ...postDraft, slug: slugify(e.target.value) }); }} className="font-mono" /></Field>
-              <Field label="Categoría"><Input list="cats" value={postDraft.categoria} onChange={(e) => setPostDraft({ ...postDraft, categoria: e.target.value })} /><datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist></Field>
+              <Field label="Categoría">
+                <Select value={postDraft.categoria} onChange={(e) => setPostDraft({ ...postDraft, categoria: e.target.value })}>
+                  {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Select>
+              </Field>
+            </div>
+            <div className="flex items-center gap-2 -mt-1">
+              <span className="text-[10.5px] text-fog uppercase tracking-wider font-bold shrink-0">¿Nueva categoría?</span>
+              <Input value={nuevaCat} onChange={(e) => setNuevaCat(e.target.value)} placeholder="Nombre…" className="flex-1" />
+              <Btn size="sm" variant="outline" icon="plus" onClick={() => { crearCategoria(nuevaCat); if (nuevaCat.trim()) setPostDraft({ ...postDraft, categoria: nuevaCat.trim() }); }}>Crear</Btn>
             </div>
             <div className="font-mono text-[11px] text-pine bg-pinel/60 border border-pine/20 rounded-lg px-3 py-2">bletia.ec/{catSlug(postDraft.categoria)}/{postDraft.slug || "…"}</div>
-            <Field label="Etiquetas (separadas por coma)"><Input value={postDraft.etiquetas.join(", ")} onChange={(e) => setPostDraft({ ...postDraft, etiquetas: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} /></Field>
+            <Field label="Etiquetas"><TagInput value={postDraft.etiquetas} onChange={(v) => setPostDraft({ ...postDraft, etiquetas: v })} sugerencias={etiquetas} /></Field>
             <Field label="Extracto"><Input value={postDraft.extracto} onChange={(e) => setPostDraft({ ...postDraft, extracto: e.target.value })} /></Field>
             <Field label="Imagen (URL)"><Input value={postDraft.img} onChange={(e) => setPostDraft({ ...postDraft, img: e.target.value })} className="font-mono" /></Field>
             <Field label="Cuerpo (una idea por línea)"><textarea value={postDraft.cuerpo.join("\n")} onChange={(e) => setPostDraft({ ...postDraft, cuerpo: e.target.value.split("\n") })} rows={6} className="w-full bg-card border border-line2 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-pine" /></Field>
@@ -275,14 +352,18 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
       </Drawer>
 
       {/* ── drawer producto (Shopify) ── */}
-      <Drawer open={!!prodDraft} onClose={() => setProdDraft(null)} kicker="Editor de producto · Shopify" title={prodDraft?.nombre || "Nuevo producto"}>
+      <Drawer open={!!prodDraft} onClose={() => setProdDraft(null)} kicker="Editor de producto · tienda" title={prodDraft?.nombre || "Nuevo producto"}>
         {prodDraft && (
           <div className="space-y-4">
             <Field label="Nombre"><Input value={prodDraft.nombre} onChange={(e) => { const t = e.target.value; setProdDraft({ ...prodDraft, nombre: t, slug: prodSlugTouched ? prodDraft.slug : slugify(t) }); }} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="URL (slug)"><Input value={prodDraft.slug} onChange={(e) => { setProdSlugTouched(true); setProdDraft({ ...prodDraft, slug: slugify(e.target.value) }); }} className="font-mono" /></Field>
               <Field label="Precio (IVA incluido)"><Input type="number" step="0.01" value={prodDraft.precio} onChange={(e) => setProdDraft({ ...prodDraft, precio: Number(e.target.value) })} className="font-mono" /></Field>
-              <Field label="Categoría"><Input list="catsp" value={prodDraft.cat} onChange={(e) => setProdDraft({ ...prodDraft, cat: e.target.value })} /><datalist id="catsp">{catsProd.map((c) => <option key={c} value={c} />)}</datalist></Field>
+              <Field label="Categoría">
+                <Select value={prodDraft.cat} onChange={(e) => setProdDraft({ ...prodDraft, cat: e.target.value })}>
+                  {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Select>
+              </Field>
               <Field label="Imagen (URL)"><Input value={prodDraft.img} onChange={(e) => setProdDraft({ ...prodDraft, img: e.target.value })} className="font-mono" /></Field>
             </div>
             <div className="flex items-center gap-4">
@@ -309,6 +390,7 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
                 <Btn size="sm" variant="outline" icon="plus" onClick={() => setProdDraft({ ...prodDraft, vars: [...prodDraft.vars, { n: "Nueva", c: "#c7a472" }] })}>Añadir variable</Btn>
               </div>
             </Field>
+            <Field label="Etiquetas"><TagInput value={prodDraft.etiquetas ?? []} onChange={(v) => setProdDraft({ ...prodDraft, etiquetas: v })} sugerencias={etiquetas} /></Field>
             <Field label="Descripción"><Input value={prodDraft.desc} onChange={(e) => setProdDraft({ ...prodDraft, desc: e.target.value })} /></Field>
             <Field label="Detalles (una línea cada uno)"><textarea value={prodDraft.detalles.join("\n")} onChange={(e) => setProdDraft({ ...prodDraft, detalles: e.target.value.split("\n").filter(Boolean) })} rows={3} className="w-full bg-card border border-line2 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-pine" /></Field>
             <div className="flex justify-end gap-2 pt-2 border-t border-line">
@@ -318,6 +400,57 @@ export default function Contenido({ nav }: { nav?: (v: View, p?: string) => void
           </div>
         )}
       </Drawer>
+    </div>
+  );
+}
+
+/* ── etiquetas con autocompletar: escribe, sugiere las existentes y crea al vuelo ── */
+function TagInput({ value, onChange, sugerencias }: { value: string[]; onChange: (v: string[]) => void; sugerencias: string[] }) {
+  const [q, setQ] = useState("");
+  const [focus, setFocus] = useState(false);
+  const add = (t: string) => {
+    const x = slugify(t);
+    if (x && !value.includes(x)) onChange([...value, x]);
+    setQ("");
+  };
+  const qn = slugify(q);
+  const matches = qn ? sugerencias.filter((s) => !value.includes(s) && s.includes(qn)).slice(0, 6) : [];
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap items-center gap-1.5 bg-card border border-line2 rounded-lg px-2.5 py-2 focus-within:border-pine focus-within:ring-2 focus-within:ring-pine/12 transition-all">
+        {value.map((t) => (
+          <span key={t} className="anim-pop flex items-center gap-1.5 bg-steell text-steel text-[11px] font-mono px-2 py-1 rounded-md">
+            #{t}
+            <button onClick={() => onChange(value.filter((x) => x !== t))} className="hover:text-brick transition-colors" aria-label={`quitar ${t}`}><Icon name="x" size={10} /></button>
+          </span>
+        ))}
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onFocus={() => setFocus(true)}
+          onBlur={() => setTimeout(() => setFocus(false), 160)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(q); }
+            if (e.key === "Backspace" && !q && value.length) onChange(value.slice(0, -1));
+          }}
+          placeholder={value.length ? "otra…" : "escribe unas letras y Enter…"}
+          className="flex-1 min-w-[130px] bg-transparent outline-none text-[13px]"
+        />
+      </div>
+      {focus && qn && (
+        <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-card border border-line rounded-lg shadow-xl overflow-hidden anim-pop">
+          {matches.map((m) => (
+            <button key={m} onMouseDown={(e) => { e.preventDefault(); add(m); }} className="w-full text-left px-3 py-2 text-[12px] font-mono text-mut hover:bg-pinel/40 hover:text-ink transition-colors">
+              #{m} <span className="text-fog text-[10px]">· existente</span>
+            </button>
+          ))}
+          {!value.includes(qn) && (
+            <button onMouseDown={(e) => { e.preventDefault(); add(q); }} className="w-full text-left px-3 py-2 text-[12px] text-wine font-semibold hover:bg-winel/60 border-t border-line transition-colors">
+              + crear "#{qn}"
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

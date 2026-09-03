@@ -150,6 +150,7 @@ export interface PostBlog {
 
 export interface ProductoWeb {
   id: string; slug: string; nombre: string; precio: number; cat: string;
+  etiquetas?: string[]; /* se llenan al editar el producto en el CMS */
   img: string; destacado: boolean; novedad: boolean; vt: string;
   vars: { n: string; c: string }[]; desc: string; detalles: string[];
   estado: "activo" | "oculto";
@@ -164,6 +165,7 @@ export interface CmsConfig {
   copyright: string;
   contacto: { direccion: string; telefono: string; email: string; horario: string };
   newsletterTitulo: string; newsletterSub: string;
+  categorias: string[]; /* registro único: se crean una vez y se eligen en entradas y productos */
 }
 
 export interface Redireccion { de: string; a: string; ts: string; }
