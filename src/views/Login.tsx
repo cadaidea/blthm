@@ -32,7 +32,7 @@ export default function Login({ nav }: { nav: (v: View) => void }) {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr]">
+    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] font-dash">
       {/* lado de marca */}
       <div className="relative bg-night text-paper overflow-hidden max-lg:h-64">
         <div className="absolute inset-0 opacity-40">
@@ -62,10 +62,14 @@ export default function Login({ nav }: { nav: (v: View) => void }) {
       {/* formulario */}
       <div className="flex items-center justify-center p-8 lg:p-12">
         <div className="w-full max-w-md anim-up">
-          <div className="font-mono text-[10px] tracked uppercase text-fog">bletia.ec/dash → te redirigimos a <span className="text-wine">/dash/login</span></div>
-          <h2 className="font-display font-semibold text-[34px] text-ink mt-2">Acceso de colaboradores</h2>
+          <div className="flex items-center gap-2.5">
+            <span className="font-display font-bold text-[24px] tracking-[0.3em] text-ink">BLETIA</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-wine mt-2" />
+          </div>
+          <h2 className="font-display font-semibold text-[34px] text-ink mt-3">Acceso de colaboradores</h2>
           <p className="text-[13px] text-mut mt-1.5 leading-relaxed">
-            Cada trabajador entra con su rol y ve <b className="text-ink">solo su área</b>. Gerencia ve todo.
+            Bienvenido a un día más de trabajo. Que hoy cada pieza que toque tus manos salga del taller
+            <b className="text-ink"> simple, elegante y suya</b>.
           </p>
 
           <div className="mt-6 space-y-3">

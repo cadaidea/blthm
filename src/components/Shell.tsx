@@ -4,6 +4,7 @@ import { useStore } from "../lib/store";
 import type { RoleInterno, View } from "../lib/types";
 import { cls, num } from "../lib/util";
 import { Icon } from "./ui";
+import ThemeToggle from "./ThemeToggle";
 
 const NAV: { group: string; items: { id: View; label: string; icon: string }[] }[] = [
   {
@@ -77,7 +78,7 @@ export function Shell({ view, nav, children }: { view: View; nav: (v: View, p?: 
   };
 
   return (
-    <div className="min-h-screen lg:pl-[236px]">
+    <div className="min-h-screen lg:pl-[236px] font-dash">
       {/* sidebar — hueso, sin fatiga visual */}
       <aside className="fixed inset-y-0 left-0 w-[236px] bg-[#f7f3eb] border-r border-line flex flex-col z-40 max-lg:hidden">
         <button onClick={() => nav("dashboard")} className="flex items-center gap-3 px-5 h-16 border-b border-line text-left hover:bg-ink/3 transition-colors">
@@ -120,7 +121,7 @@ export function Shell({ view, nav, children }: { view: View; nav: (v: View, p?: 
               <button onClick={logout} title="Cerrar sesión" className="text-fog hover:text-brick transition-colors"><Icon name="x" size={14} /></button>
             </div>
             <div className="flex items-center gap-1.5 mt-2 px-1 text-[9.5px] font-mono text-fog">
-              <span className="w-1.5 h-1.5 rounded-full bg-moss live-dot" /> bus activo · <span className="num">{num(eps)}</span> ev/s · PostgreSQL 16
+              <span className="w-1.5 h-1.5 rounded-full bg-moss live-dot" /> En línea
             </div>
           </div>
         )}
@@ -144,6 +145,7 @@ export function Shell({ view, nav, children }: { view: View; nav: (v: View, p?: 
             <span className="w-1.5 h-1.5 rounded-full bg-moss live-dot" />
             <span className="num">{num(state.session.events)}</span> eventos
           </div>
+          <ThemeToggle />
           <button onClick={() => nav("web")} className="flex items-center gap-1.5 text-[11.5px] font-bold text-mut hover:text-ink border border-line bg-card rounded-lg px-3 py-1.5 transition-all hover:border-ink/40">
             <Icon name="ext" size={12} /> bletia.ec
           </button>
@@ -169,9 +171,9 @@ export function Shell({ view, nav, children }: { view: View; nav: (v: View, p?: 
 
       <footer className="px-4 lg:px-6 pb-6 max-w-[1480px] mx-auto">
         <div className="border-t border-line pt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-fog font-mono">
-          <span>BLETIA suite v2.2 · puerto del ERP de upgrade.bletia.ec</span>
+          <span>BLETIA suite</span>
           <span>hecho en Cuenca</span>
-          <span className="ml-auto">demo · PostgreSQL 16 en producción</span>
+          <span className="ml-auto">Simple. Elegante. tu.</span>
         </div>
       </footer>
     </div>

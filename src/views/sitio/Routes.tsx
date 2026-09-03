@@ -7,15 +7,17 @@ import { Thumb } from "../../components/Img";
 import { BloqueVista, CardProducto, LinkA, SinImagen, TeaserPost, type WebCtx } from "./Renderers";
 
 /* ═══ TIENDA / CATEGORÍA ═══ */
-export function TiendaView({ ctx, cat }: { ctx: WebCtx; cat: string | null }) {
+export function TiendaView({ ctx, cat, tag }: { ctx: WebCtx; cat: string | null; tag: string | null }) {
   const productos = ctx.cms.productos.filter((p) => p.estado === "activo");
   const cats = Array.from(new Set(productos.map((p) => p.cat)));
-  const list = cat ? productos.filter((p) => slugify(p.cat) === cat) : productos;
-  const catName = cat ? (productos.find((p) => slugify(p.cat) === cat)?.cat ?? cat) : "Todo";
+  const allTags = Array.from(new Set(productos.flatMap((p) => p.etiquetas ?? []))).sort();
+  const list = productos.filter((p) => (!cat || slugify(p.cat) === cat) && (!tag || (p.etiquetas ?? []).includes(tag)));
+  const catName = cat ? (productos.find((p) => slugify(p.cat) === cat)?.cat ?? cat) : tag ? `#${tag}` : "Colección";
+  const base = cat ? `/categoria/${cat}` : "/tienda";
   return (
     <section className="max-w-[1280px] mx-auto px-4 lg:px-8 py-14">
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-9 anim-up">
-        <h1 className="font-display font-medium text-[44px] lg:text-[54px] text-ink leading-none">{cat ? catName : "Colección"}</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4 anim-up">
+        <h1 className="font-display font-medium text-[44px] lg:text-[54px] text-ink leading-none">{catName}</h1>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <LinkA to="/tienda" className={`text-[12.5px] font-semibold tracking-[0.12em] uppercase pb-1 border-b transition-colors ${!cat ? "border-wine text-wine" : "border-transparent text-mut hover:text-ink"}`}>Todo</LinkA>
           {cats.map((c) => (
@@ -23,10 +25,17 @@ export function TiendaView({ ctx, cat }: { ctx: WebCtx; cat: string | null }) {
           ))}
         </div>
       </div>
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-5 anim-up">
+          {allTags.map((t) => (
+            <LinkA key={t} to={`${base}?tag=${slugify(t)}`} className={`text-[11px] px-2.5 py-1 border transition-colors ${tag === slugify(t) ? "border-wine text-wine bg-winel" : "border-line text-mut hover:border-wine/40 hover:text-wine"}`}>#{t}</LinkA>
+          ))}
+        </div>
+      )}
       {list.length === 0 ? (
         <div className="text-center py-24 text-mut anim-up">No hay piezas en esta colección todavía.</div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-11 stagger">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-11 stagger mt-9">
           {list.map((p) => <CardProducto key={p.id} p={p} ctx={ctx} />)}
         </div>
       )}
@@ -113,6 +122,13 @@ export function ProductoView({ ctx, slug }: { ctx: WebCtx; slug: string }) {
             </div>
           </div>
           <LinkA to="/garantia" className="inline-block mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-wine uline">Ver garantía</LinkA>
+          {(p.etiquetas ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {(p.etiquetas ?? []).map((t) => (
+                <LinkA key={t} to={`/tienda?tag=${slugify(t)}`} className="text-[11px] px-2.5 py-1 border border-line text-mut hover:border-wine/40 hover:text-wine transition-colors">#{t}</LinkA>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

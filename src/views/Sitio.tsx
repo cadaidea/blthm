@@ -26,8 +26,8 @@ const parseRoute = (hash: string): Route => {
   const segs = pathPart.split("/").filter(Boolean);
   const q = new URLSearchParams(queryPart ?? "");
   if (segs.length === 0) return { k: "home" };
-  if (segs[0] === "tienda") return { k: "tienda", cat: null };
-  if (segs[0] === "categoria" && segs[1]) return { k: "tienda", cat: segs[1] };
+  if (segs[0] === "tienda") return { k: "tienda", cat: null, tag: q.get("tag") };
+  if (segs[0] === "categoria" && segs[1]) return { k: "tienda", cat: segs[1], tag: q.get("tag") };
   if (segs[0] === "producto" && segs[1]) return { k: "producto", slug: segs[1] };
   if (segs[0] === "diario") return { k: "diario", cat: q.get("cat"), tag: q.get("tag") };
   if (segs[0] === "seguimiento") return { k: "seguimiento" };
@@ -39,7 +39,10 @@ const parseRoute = (hash: string): Route => {
 const routePath = (r: Route): string => {
   switch (r.k) {
     case "home": return "/";
-    case "tienda": return r.cat ? `/categoria/${r.cat}` : "/tienda";
+    case "tienda": {
+      const base = r.cat ? `/categoria/${r.cat}` : "/tienda";
+      return r.tag ? `${base}?tag=${r.tag}` : base;
+    }
     case "producto": return `/producto/${r.slug}`;
     case "diario": return `/diario${r.cat ? `?cat=${r.cat}` : r.tag ? `?tag=${r.tag}` : ""}`;
     case "post": return `/${r.cat}/${r.slug}`;
@@ -171,7 +174,7 @@ export default function Sitio({ nav }: { nav: (v: View) => void }) {
         const pg = cms.paginas.find((p) => p.slug === "inicio" && publicado(p));
         return pg ? <PaginaView ctx={ctx} pagina={pg} /> : <NotFound ctx={ctx} />;
       }
-      case "tienda": return <TiendaView ctx={ctx} cat={route.cat} />;
+      case "tienda": return <TiendaView ctx={ctx} cat={route.cat} tag={route.tag} />;
       case "producto": return <ProductoView ctx={ctx} slug={route.slug} />;
       case "diario": return <DiarioView ctx={ctx} cat={route.cat} tag={route.tag} />;
       case "post": return <PostView ctx={ctx} cat={route.cat} slug={route.slug} />;

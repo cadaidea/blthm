@@ -24,6 +24,8 @@
   --font-serif: "Cormorant Garamond", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
+  --font-dash: "Inter", "Jost", "Segoe UI", sans-serif;
+
   /* base blanco/tinta neutra — modo día (ejecutivo, sin crema) */
   --color-paper: #ffffff;
   --color-card: #ffffff;

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildOrder, buildPayLink, estadosCliente, estadosLabel, orderFlow, saldoDe, useStore } from "../lib/store";
-import type { Channel, Movement, Order, OrderKind, OrderStatus, Warehouse } from "../lib/types";
+import type { Channel, Movement, Order, OrderKind, OrderSpec, OrderStatus, Warehouse } from "../lib/types";
 import { calcTotals, copyText, fmtDate, money, timeAgo, uid } from "../lib/util";
 import { Badge, Btn, Card, Drawer, EmptyState, Field, Icon, Input, Modal, SectionTitle, Select, Tabs, Td, Th } from "../components/ui";
 import { Thumb } from "../components/Img";
@@ -13,7 +13,65 @@ const orderTone: Record<OrderStatus, "pine" | "oak" | "steel" | "moss" | "brick"
 };
 
 const WH_LABEL: Record<Warehouse, string> = { showroom: "Showroom", bodega: "Bodega", taller: "Taller" };
-const emptySpec = () => ({ tapiz: "", tapizSec: "", cojines: "", lacado: "", notas: "", fotos: [{ campo: "Tapiz principal", label: "" }] });
+const emptySpec = (): OrderSpec => ({ tapiz: "", tapizSec: "", cojines: "", lacado: "", notas: "", fotos: [] });
+
+const SPEC_FIELDS: { campo: "tapiz" | "tapizSec" | "cojines" | "lacado"; label: string; placeholder: string }[] = [
+  { campo: "tapiz", label: "Tapiz principal", placeholder: "ej: Lino crudo T-04" },
+  { campo: "tapizSec", label: "Tapiz secundario", placeholder: "ej: Chenille gris piedra" },
+  { campo: "cojines", label: "Cojines", placeholder: "cantidad y tela" },
+  { campo: "lacado", label: "Lacado", placeholder: "ej: Natural mate (poro abierto)" },
+];
+
+/* sube una foto real y la guarda como data-URL (con miniatura) */
+function FotoBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const isImg = value.startsWith("data:") || value.startsWith("http");
+  return (
+    <>
+      <button type="button" onClick={() => ref.current?.click()} title={value ? "Cambiar foto" : "Subir foto"}
+        className="relative w-12 h-12 rounded-lg border border-oak/30 bg-paper overflow-hidden grid place-items-center hover:border-oak hover:shadow-sm transition-all shrink-0 group">
+        {isImg ? (
+          <img src={value} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <Icon name="image" size={16} className="text-oakd" />
+        )}
+        {value && !isImg && <span className="absolute inset-x-0 bottom-0 bg-night/70 text-paper text-[6.5px] font-mono truncate px-0.5 py-px">{value}</span>}
+        <span className="absolute inset-0 bg-wine/0 group-hover:bg-wine/10 transition-colors" />
+      </button>
+      <input ref={ref} type="file" accept="image/*" className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          const r = new FileReader();
+          r.onload = () => onChange(r.result as string);
+          r.readAsDataURL(f);
+          e.target.value = "";
+        }} />
+    </>
+  );
+}
+
+/* una fila de spec: su etiqueta, su campo de texto y SU foto (asociada al campo) */
+function SpecRow({ spec, campo, label, placeholder, onChange }: {
+  spec: OrderSpec; campo: "tapiz" | "tapizSec" | "cojines" | "lacado"; label: string; placeholder: string;
+  onChange: (s: OrderSpec) => void;
+}) {
+  const foto = spec.fotos.find((f) => f.campo === label)?.label ?? "";
+  const setFoto = (v: string) => {
+    const rest = spec.fotos.filter((f) => f.campo !== label);
+    onChange({ ...spec, fotos: v ? [...rest, { campo: label, label: v }] : rest });
+  };
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg bg-card border border-line px-2.5 py-2">
+      <FotoBox value={foto} onChange={setFoto} />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase font-bold tracking-wider text-oakd mb-1">{label}</div>
+        <input value={spec[campo]} onChange={(e) => onChange({ ...spec, [campo]: e.target.value })} placeholder={placeholder}
+          className="w-full bg-transparent border-b border-line focus:border-oak outline-none text-[13px] pb-1 transition-colors placeholder:text-fog" />
+      </div>
+    </div>
+  );
+}
 
 export default function Operaciones({ initialQuery }: { initialQuery?: string }) {
   const { state, dispatch, toast } = useStore();
@@ -371,25 +429,29 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                       </div>
                       {i.spec && (
                         <>
-                          <div className="grid grid-cols-2 gap-2 text-[12px]">
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Tapiz principal</div>{i.spec.tapiz || "—"}</div>
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Tapiz secundario</div>{i.spec.tapizSec || "—"}</div>
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Cojines</div>{i.spec.cojines || "—"}</div>
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Lacado</div>{i.spec.lacado || "—"}</div>
+                          <div className="space-y-2">
+                            {SPEC_FIELDS.map(({ campo, label }) => {
+                              const val = i.spec?.[campo] ?? "";
+                              const foto = i.spec?.fotos.find((f) => f.campo === label)?.label ?? "";
+                              const isImg = foto.startsWith("data:") || foto.startsWith("http");
+                              return (
+                                <div key={campo} className="flex items-center gap-2.5 rounded-lg bg-card border border-line px-2.5 py-2">
+                                  {foto ? (
+                                    isImg
+                                      ? <img src={foto} alt={label} className="w-11 h-11 rounded-lg object-cover border border-line shrink-0" />
+                                      : <span className="w-11 h-11 rounded-lg border border-line grid place-items-center shrink-0 bg-paper"><Icon name="image" size={14} className="text-oakd" /></span>
+                                  ) : (
+                                    <span className="w-11 h-11 rounded-lg bg-ink/4 grid place-items-center shrink-0"><Icon name="image" size={14} className="text-fog" /></span>
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="text-[9.5px] uppercase font-bold text-fog">{label}</div>
+                                    <div className="text-[12.5px] text-ink truncate">{val || "—"}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                           {i.spec.notas && <div className="mt-2 text-[12px] text-oakd bg-card border border-line rounded-lg p-2">✎ {i.spec.notas}</div>}
-                          {i.spec.fotos.length > 0 && (
-                            <div className="mt-2.5">
-                              <div className="text-[10px] uppercase font-bold text-fog mb-1.5">Fotos por campo (viajan en el link único)</div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {i.spec.fotos.map((f, fx) => (
-                                  <span key={fx} className="flex items-center gap-1.5 font-mono text-[11px] bg-card border border-line rounded-lg px-2 py-1">
-                                    <Icon name="image" size={11} className="text-oakd" />{f.campo}: {f.label || "por subir"}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </>
                       )}
                     </div>
@@ -544,24 +606,14 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                   </div>
                   {showNew === "pedido" && (
                     <div className="rounded-lg bg-oakl/40 border border-oak/25 p-2.5 space-y-2 anim-up">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input placeholder="Tapiz principal (ej: Lino crudo T-04)" value={it.spec.tapiz} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, tapiz: e.target.value } } : x) })} />
-                        <Input placeholder="Tapiz secundario" value={it.spec.tapizSec} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, tapizSec: e.target.value } } : x) })} />
-                        <Input placeholder="Cojines" value={it.spec.cojines} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, cojines: e.target.value } } : x) })} />
-                        <Input placeholder="Lacado (ej: Natural mate)" value={it.spec.lacado} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, lacado: e.target.value } } : x) })} />
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-oakd/70 flex items-center gap-1.5">
+                        <Icon name="image" size={11} /> Foto de referencia en cada campo (viaja en el link único)
                       </div>
+                      {SPEC_FIELDS.map(({ campo, label, placeholder }) => (
+                        <SpecRow key={campo} spec={it.spec} campo={campo} label={label} placeholder={placeholder}
+                          onChange={(s) => setNf({ ...nf, items: nf.items.map((x, ix) => (ix === i ? { ...x, spec: s } : x)) })} />
+                      ))}
                       <Input placeholder="Notas del cliente (medidas especiales, esquinas…)" value={it.spec.notas} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, notas: e.target.value } } : x) })} />
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        <span className="text-[10px] uppercase font-bold text-oakd">Fotos por campo:</span>
-                        {it.spec.fotos.map((f, fx) => (
-                          <span key={fx} className="flex items-center gap-1 font-mono text-[10.5px] bg-card border border-line rounded px-1.5 py-0.5">
-                            <Icon name="image" size={10} className="text-oakd" />{f.campo}:
-                            <input className="bg-transparent outline-none w-28" placeholder="archivo.jpg" value={f.label}
-                              onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, fotos: x.spec.fotos.map((ff, ffx) => (ffx === fx ? { ...ff, label: e.target.value } : ff)) } } : x) })} />
-                          </span>
-                        ))}
-                        <button className="text-[10.5px] font-bold text-oakd underline underline-offset-2" onClick={() => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, fotos: [...x.spec.fotos, { campo: `Campo ${x.spec.fotos.length + 1}`, label: "" }] } } : x) })}>+ foto</button>
-                      </div>
                     </div>
                   )}
                 </div>
