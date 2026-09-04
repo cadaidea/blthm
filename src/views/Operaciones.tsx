@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildOrder, buildPayLink, estadosCliente, estadosLabel, orderFlow, saldoDe, useStore } from "../lib/store";
-import type { Channel, Movement, Order, OrderKind, OrderSpec, OrderStatus, Warehouse } from "../lib/types";
+import type { Channel, Customer, Movement, Order, OrderKind, OrderSpec, OrderStatus, Warehouse } from "../lib/types";
 import { calcTotals, copyText, fmtDate, money, timeAgo, uid } from "../lib/util";
 import { Badge, Btn, Card, Drawer, EmptyState, Field, Icon, Input, Modal, SectionTitle, Select, Tabs, Td, Th } from "../components/ui";
 import { Thumb } from "../components/Img";
+import { searchCustomer, clearCache } from "../utils/sriService";
 
 const orderTone: Record<OrderStatus, "pine" | "oak" | "steel" | "moss" | "brick" | "fog"> = {
   borrador: "fog", pendiente: "fog", por_aprobar: "oak", aprobado: "pine", confirmado: "pine",
@@ -91,6 +92,11 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
     customerId: "", channel: "tienda" as Channel,
     items: [{ productId: "", qty: "1", spec: emptySpec() }],
   });
+  // Estados para búsqueda de cliente por documento (SRI/Registro Civil)
+  const [docBusqueda, setDocBusqueda] = useState("");
+  const [docLoading, setDocLoading] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [clienteManual, setClienteManual] = useState<Partial<Customer> | null>(null);
 
   const cur = state.orders.find((o) => o.id === openId) ?? null;
 
@@ -134,6 +140,77 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
     });
     return calcTotals(lines);
   }, [nf, state.products]);
+
+  const buscarClientePorDocumento = async () => {
+    const doc = docBusqueda.trim();
+    if (!doc) return;
+    
+    setDocLoading(true);
+    setDocError(null);
+    setClienteManual(null);
+    
+    try {
+      const resultado = await searchCustomer(doc);
+      
+      if (resultado) {
+        // Verificar si el cliente ya existe en la base de datos local
+        const clienteExistente = state.customers.find(c => c.id === resultado.id);
+        
+        if (clienteExistente) {
+          // Cliente ya existe, lo seleccionamos directamente
+          setNf({ ...nf, customerId: clienteExistente.id });
+          toast(`✅ Cliente encontrado: ${clienteExistente.name}`);
+        } else {
+          // Cliente nuevo, guardamos datos para creación automática o manual
+          setClienteManual({
+            id: resultado.id,
+            name: resultado.name,
+            type: resultado.type,
+            email: resultado.email || '',
+            phone: resultado.phone || '',
+            address: resultado.address || '',
+            city: resultado.city || 'Guayaquil',
+          });
+          
+          if (resultado.name && resultado.status === 'Activo') {
+            toast(`✅ Datos obtenidos del SRI: ${resultado.name}`);
+          } else if (resultado.status?.includes('No encontrado')) {
+            toast(`ℹ️ Cédula válida · complete nombre del cliente`, 'warn');
+          } else {
+            toast(`⚠️ API offline · ingrese datos manualmente`, 'warn');
+          }
+        }
+      }
+    } catch (err: any) {
+      setDocError(err.message || 'Error al consultar documento');
+      toast(err.message || 'Error en consulta', 'warn');
+    } finally {
+      setDocLoading(false);
+    }
+  };
+
+  const crearClienteYContinuar = () => {
+    if (!clienteManual || !clienteManual.id) return;
+    if (!clienteManual.name?.trim()) return toast('Ingrese el nombre del cliente', 'warn');
+    
+    // Crear nuevo cliente en el store
+    const nuevoCliente: Customer = {
+      id: clienteManual.id,
+      name: clienteManual.name.trim(),
+      type: clienteManual.type || 'natural',
+      email: clienteManual.email || '',
+      phone: clienteManual.phone || '',
+      address: clienteManual.address || '',
+      city: clienteManual.city || 'Guayaquil',
+      createdAt: new Date().toISOString(),
+    };
+    
+    dispatch({ type: 'CREATE_CUSTOMER', customer: nuevoCliente });
+    setNf({ ...nf, customerId: nuevoCliente.id });
+    setClienteManual(null);
+    setDocBusqueda('');
+    toast('Cliente creado exitosamente');
+  };
 
   const createOrder = () => {
     if (!nf.customerId) return toast("Selecciona el cliente", "warn");
@@ -577,9 +654,119 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
       {/* modal nuevo pedido (dos rutas) */}
       <Modal open={!!showNew} onClose={() => setShowNew(null)} kicker={showNew === "pedido" ? "Ruta bajo pedido · specs de personalización" : "Ruta venta · stock inmediato"} title={showNew === "pedido" ? "Nuevo pedido bajo specs" : "Nueva venta de stock"}>
         <div className="space-y-3">
+          {/* Sección de búsqueda de cliente por documento (SRI/Registro Civil) */}
+          <div className="rounded-xl bg-pinel/40 border border-pine/20 p-3 space-y-2.5">
+            <div className="text-[11px] font-bold text-pined uppercase tracking-wider flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Icon name="idcard" size={14} /> Buscar cliente por Cédula/RUC (validación Módulo 10 + SRI)
+              </div>
+              <button 
+                type="button"
+                onClick={() => { clearCache(); toast('🗑️ Caché limpiada'); }}
+                className="text-[9px] text-pine hover:text-pined underline opacity-70 hover:opacity-100"
+                title="Limpiar caché de consultas"
+              >
+                Limpiar caché
+              </button>
+            </div>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Field label="Número de documento">
+                  <div className="relative">
+                    <Input 
+                      value={docBusqueda} 
+                      onChange={(e) => setDocBusqueda(e.target.value.replace(/[^0-9]/g, ''))} 
+                      placeholder="Ingrese cédula (10 dígitos) o RUC (13 dígitos)"
+                      maxLength={13}
+                      disabled={docLoading || !!nf.customerId}
+                      onKeyDown={(e) => e.key === 'Enter' && buscarClientePorDocumento()}
+                    />
+                    {docLoading && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-pine border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </Field>
+              </div>
+              <Btn 
+                variant="dark" 
+                icon="search" 
+                onClick={buscarClientePorDocumento}
+                disabled={!docBusqueda || docLoading}
+              >
+                Consultar
+              </Btn>
+              {nf.customerId && (
+                <Btn variant="ghost" size="sm" icon="x" onClick={() => { setNf({ ...nf, customerId: '' }); setDocBusqueda(''); }} />
+              )}
+            </div>
+            
+            {docError && (
+              <div className="text-[11.5px] text-brick font-medium flex items-center gap-1.5">
+                <Icon name="alert" size={14} /> {docError}
+              </div>
+            )}
+            
+            {/* Formulario para completar datos del cliente nuevo */}
+            {clienteManual && !nf.customerId && (
+              <div className="grid sm:grid-cols-2 gap-2.5 pt-2 border-t border-pine/20 anim-up">
+                <Field label="Nombre / Razón Social *">
+                  <Input 
+                    value={clienteManual.name || ''} 
+                    onChange={(e) => setClienteManual({ ...clienteManual, name: e.target.value })}
+                    placeholder="Complete el nombre"
+                  />
+                </Field>
+                <Field label="Teléfono">
+                  <Input 
+                    value={clienteManual.phone || ''} 
+                    onChange={(e) => setClienteManual({ ...clienteManual, phone: e.target.value })}
+                    placeholder="Opcional"
+                  />
+                </Field>
+                <Field label="Email">
+                  <Input 
+                    type="email"
+                    value={clienteManual.email || ''} 
+                    onChange={(e) => setClienteManual({ ...clienteManual, email: e.target.value })}
+                    placeholder="Opcional"
+                  />
+                </Field>
+                <Field label="Ciudad">
+                  <Input 
+                    value={clienteManual.city || ''} 
+                    onChange={(e) => setClienteManual({ ...clienteManual, city: e.target.value })}
+                  />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Dirección">
+                    <Input 
+                      value={clienteManual.address || ''} 
+                      onChange={(e) => setClienteManual({ ...clienteManual, address: e.target.value })}
+                      placeholder="Dirección completa"
+                    />
+                  </Field>
+                </div>
+                <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
+                  <Btn variant="ghost" size="sm" onClick={() => setClienteManual(null)}>Cancelar</Btn>
+                  <Btn variant="dark" size="sm" icon="user-plus" onClick={crearClienteYContinuar}>
+                    Crear cliente y continuar
+                  </Btn>
+                </div>
+              </div>
+            )}
+            
+            {nf.customerId && (
+              <div className="text-[11.5px] text-pine font-medium flex items-center gap-1.5">
+                <Icon name="check" size={14} /> Cliente seleccionado: {state.customers.find(c => c.id === nf.customerId)?.name}
+              </div>
+            )}
+          </div>
+          
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Cliente">
-              <Select value={nf.customerId} onChange={(e) => setNf({ ...nf, customerId: e.target.value })}>
+            <Field label="Cliente (selección manual)">
+              <Select value={nf.customerId} onChange={(e) => setNf({ ...nf, customerId: e.target.value })} disabled={!!clienteManual}>
                 <option value="">— seleccionar —</option>
                 {state.customers.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.city}</option>)}
               </Select>
