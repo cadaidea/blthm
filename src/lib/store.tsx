@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useReducer } from "react";
 import type { ReactNode } from "react";
-import type { AppState, Channel, EventItem, Invoice, JournalEntry, Order, OrderKind, OrderStatus, PayLink, Product, WorkOrder, WoStatus } from "./types";
+import type { AppState, Channel, Customer, EventItem, Invoice, JournalEntry, Order, OrderKind, OrderStatus, PayLink, Product, WorkOrder, WoStatus } from "./types";
 import { seedState } from "./seed";
 import { calcTotals, money, sriAuth, token, uid } from "./util";
 
@@ -281,6 +281,10 @@ function reduce(s: AppState, a: Action): AppState {
     case "CREATE_PRODUCT": {
       const p = a.product as Product;
       return { ...s, products: [p, ...s.products], events: [mkEvent("stock", `Producto ${p.sku} · ${p.name} publicado en PIM`), ...s.events].slice(0, 90) };
+    }
+    case "CREATE_CUSTOMER": {
+      const c = a.customer as Customer;
+      return { ...s, customers: [c, ...s.customers], events: [mkEvent("crm", `Cliente ${c.id} · ${c.name} registrado desde Operaciones`), ...s.events].slice(0, 90) };
     }
     case "PATCH_PRODUCT":
       return { ...s, products: s.products.map((p) => (p.id === a.id ? { ...p, ...a.patch } : p)) };

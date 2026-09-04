@@ -65,7 +65,7 @@ export interface Product {
 
 export interface Customer {
   id: string; code: string; name: string; doc: string; type: "natural" | "juridica";
-  phone: string; email: string; city: string;
+  phone: string; email: string; city: string; address?: string;
   segment: "hogar" | "corporativo" | "distribuidor" | "arquitectura";
   orders: number; total: number; credit: number; since: string; notes: string;
 }
