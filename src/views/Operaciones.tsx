@@ -4,7 +4,7 @@ import type { Channel, Customer, Movement, Order, OrderKind, OrderSpec, OrderSta
 import { calcTotals, copyText, fmtDate, money, timeAgo, uid } from "../lib/util";
 import { Badge, Btn, Card, Drawer, EmptyState, Field, Icon, Input, Modal, SectionTitle, Select, Tabs, Td, Th } from "../components/ui";
 import { Thumb } from "../components/Img";
-import { searchCustomer } from "../utils/sriService";
+import { searchCustomer, clearCache } from "../utils/sriService";
 
 const orderTone: Record<OrderStatus, "pine" | "oak" | "steel" | "moss" | "brick" | "fog"> = {
   borrador: "fog", pendiente: "fog", por_aprobar: "oak", aprobado: "pine", confirmado: "pine",
@@ -159,7 +159,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
         if (clienteExistente) {
           // Cliente ya existe, lo seleccionamos directamente
           setNf({ ...nf, customerId: clienteExistente.id });
-          toast(`Cliente encontrado: ${clienteExistente.name}`);
+          toast(`✅ Cliente encontrado: ${clienteExistente.name}`);
         } else {
           // Cliente nuevo, guardamos datos para creación automática o manual
           setClienteManual({
@@ -172,10 +172,12 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
             city: resultado.city || 'Guayaquil',
           });
           
-          if (resultado.name) {
-            toast(`Datos obtenidos del SRI/Registro Civil`);
+          if (resultado.name && resultado.status === 'Activo') {
+            toast(`✅ Datos obtenidos del SRI: ${resultado.name}`);
+          } else if (resultado.status?.includes('No encontrado')) {
+            toast(`ℹ️ Cédula válida · complete nombre del cliente`, 'warn');
           } else {
-            toast(`Documento válido · complete nombre del cliente`, 'warn');
+            toast(`⚠️ API offline · ingrese datos manualmente`, 'warn');
           }
         }
       }
@@ -654,8 +656,18 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
         <div className="space-y-3">
           {/* Sección de búsqueda de cliente por documento (SRI/Registro Civil) */}
           <div className="rounded-xl bg-pinel/40 border border-pine/20 p-3 space-y-2.5">
-            <div className="text-[11px] font-bold text-pined uppercase tracking-wider flex items-center gap-1.5">
-              <Icon name="idcard" size={14} /> Buscar cliente por Cédula/RUC (SRI + Registro Civil)
+            <div className="text-[11px] font-bold text-pined uppercase tracking-wider flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Icon name="idcard" size={14} /> Buscar cliente por Cédula/RUC (validación Módulo 10 + SRI)
+              </div>
+              <button 
+                type="button"
+                onClick={() => { clearCache(); toast('🗑️ Caché limpiada'); }}
+                className="text-[9px] text-pine hover:text-pined underline opacity-70 hover:opacity-100"
+                title="Limpiar caché de consultas"
+              >
+                Limpiar caché
+              </button>
             </div>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
@@ -664,7 +676,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                     <Input 
                       value={docBusqueda} 
                       onChange={(e) => setDocBusqueda(e.target.value.replace(/[^0-9]/g, ''))} 
-                      placeholder="Ingrese cédula (10) o RUC (13)"
+                      placeholder="Ingrese cédula (10 dígitos) o RUC (13 dígitos)"
                       maxLength={13}
                       disabled={docLoading || !!nf.customerId}
                       onKeyDown={(e) => e.key === 'Enter' && buscarClientePorDocumento()}
