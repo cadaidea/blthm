@@ -17,7 +17,7 @@ function Cmd({ title, cmd }: { title: string; cmd: string }) {
     <div className="rounded-lg overflow-hidden border border-paper/10">
       <div className="flex items-center justify-between bg-night2 px-3 py-1.5">
         <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-paper/40">{title}</span>
-        <button onClick={async () => { await copyText(cmd); }} className="text-paper/50 hover:text-oakl transition-colors"><Icon name="copy" size={13} /></button>
+        <button onClick={() => copyText(cmd)} className="text-paper/50 hover:text-oakl transition-colors"><Icon name="copy" size={13} /></button>
       </div>
       <pre className="bg-night text-[11.5px] leading-relaxed font-mono text-[#9fd4b8] p-3 overflow-x-auto whitespace-pre">{cmd}</pre>
     </div>
@@ -31,10 +31,10 @@ export default function Ajustes() {
 
   const saveCo = () => { dispatch({ type: "SETTINGS", patch: { company: co } }); toast("Datos de la empresa guardados"); };
   const savePp = () => { dispatch({ type: "SETTINGS", patch: { payphone: pp } }); toast(pp.mode === "sandbox" ? "Credenciales sandbox guardadas" : "¡Cuidado! credenciales de producción activas", pp.mode === "sandbox" ? "ok" : "warn"); };
-  const reset = () => { localStorage.removeItem("taller-uno-v2"); location.reload(); };
+  const reset = () => { localStorage.removeItem("taller-uno-v3"); location.reload(); };
 
   const bajarZip = async () => {
-    toast("Empaquetando 36 archivos + guías de despliegue…", "info");
+    toast("Empaquetando 38 archivos + guías de despliegue…", "info");
     const { exportProjectZip } = await import("../lib/projectFiles");
     await exportProjectZip(state);
     toast("taller-uno.zip descargado — súbelo al VPS por File Manager");
@@ -60,7 +60,7 @@ export default function Ajustes() {
             <div className="rounded-xl bg-night p-4 flex items-center justify-between gap-3">
               <div>
                 <div className="font-mono text-[12.5px] text-oakl">taller-uno.zip</div>
-                <div className="text-[11px] text-paper/50 mt-0.5">36 archivos de código real · ~420 KB comprimido</div>
+                <div className="text-[11px] text-paper/50 mt-0.5">38 archivos de código real · ~450 KB comprimido</div>
               </div>
               <span className="w-11 h-11 rounded-xl bg-pined text-oakl grid place-items-center shrink-0"><Icon name="package" size={20} /></span>
             </div>
@@ -68,7 +68,7 @@ export default function Ajustes() {
               <div className="rounded-lg border border-line p-2.5">
                 <div className="text-[9.5px] uppercase tracking-wider font-bold text-[#41621f] mb-1">✓ Incluye</div>
                 <ul className="text-mut space-y-0.5 leading-relaxed">
-                  <li>src/ completo (los 12 módulos)</li>
+                  <li>src/ completo (los 13 módulos)</li>
                   <li>package.json · vite · tailwind</li>
                   <li>docker-compose.yml + nginx.conf</li>
                   <li>deploy/comandos-ssh.txt (paso a paso)</li>
@@ -122,35 +122,17 @@ export default function Ajustes() {
         </Card>
       </div>
 
-      {/* flujo GitHub */}
-      <Card className="anim-up hover:shadow-md transition-shadow" pad={false}>
-        <div className="p-4 pb-0">
-          <SectionTitle kicker="Recomendado · versionado y rollback" title="Subir a GitHub (la fuente de verdad)" right={<Badge tone="pine">git-ready</Badge>} />
-          <p className="text-[12px] text-mut max-w-3xl -mt-1 mb-3">
-            GitHub es tu <b>historial</b>: cada entrega queda como commit y puedes volver atrás con un <span className="font-mono">git revert</span>.
-            El VPS puede clonar directo o seguir usando el .zip — ambos caminos conviven. El ZIP ya incluye <span className="font-mono">.gitignore</span>, así que <span className="font-mono">node_modules</span>, <span className="font-mono">dist</span> y <span className="font-mono">.env</span> quedan fuera del repo.
-          </p>
+      {/* github */}
+      <Card className="anim-up">
+        <SectionTitle kicker="cadaidea/blthm · carpeta bletia/ = tu baúl Laravel" title="Flujo GitHub + VPS OVH" right={<Badge tone="moss" dot>repo verificado</Badge>} />
+        <div className="grid md:grid-cols-3 gap-3">
+          <Cmd title="1 · En tu PC — primer push" cmd={`git init\ngit add -A\ngit commit -m "v2.1 suite mueblera"\ngit remote add origin git@github.com:TU-USUARIO/taller-uno.git\ngit push -u origin main`} />
+          <Cmd title="2 · VPS — clonar una sola vez" cmd={`ssh root@vps-xxxx.ovh.net\ncd /var/www\ngit clone git@github.com:TU-USUARIO/taller-uno.git\ncd taller-uno && npm install && npm run build\ndocker compose up -d`} />
+          <Cmd title="3 · VPS — actualizar (rutina)" cmd={`cd /var/www/taller-uno\ngit pull\nnpm install && npm run build\ndocker compose restart web\n# ~2 segundos · datos intactos`} />
         </div>
-        <div className="px-4 pb-4 grid md:grid-cols-3 gap-3">
-          <Cmd title="1 · Crear repo y primer push (una vez)" cmd={`git init
-git add -A
-git commit -m "v1.0 — suite mueblera (12 módulos)"
-git branch -M main
-git remote add origin git@github.com:TU-USUARIO/taller-uno.git
-git push -u origin main`} />
-          <Cmd title="2 · Publicar una actualización (rutina)" cmd={`git add -A
-git commit -m "v1.1 — guías de remisión SRI"
-git tag v1.1.0 && git push origin main --tags`} />
-          <Cmd title="3 · En el VPS — desplegar desde GitHub" cmd={`# primera vez:
-git clone git@github.com:TU-USUARIO/taller-uno.git /var/www/taller-uno
-# cada actualización:
-cd /var/www/taller-uno && git pull
-npm install && npm run build && docker compose restart web`} />
-        </div>
-        <div className="mx-4 mb-4 rounded-lg bg-oakl/60 border border-oak/25 px-3.5 py-2.5 text-[11.5px] text-oakd flex items-start gap-2">
-          <Icon name="alert" size={14} className="shrink-0 mt-0.5" />
-          <span><b>Flujo híbrido sugerido:</b> GitHub como origen del código (paso 3) y el .zip como plan B offline. Nunca subas <span className="font-mono">.env</span> ni credenciales al repo — el <span className="font-mono">.gitignore</span> ya los bloquea.</span>
-        </div>
+        <p className="text-[11.5px] text-fog mt-3">
+          Cada entrega = commit + tag (<span className="font-mono">v2.1</span>). Rollback: <span className="font-mono">git checkout v2.0 && npm run build</span>. El ZIP queda como plan B offline.
+        </p>
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -210,45 +192,25 @@ npm install && npm run build && docker compose restart web`} />
         <div className="p-4">
           <SectionTitle kicker="VPS OVHcloud · actualizaciones sin perder datos" title="Guía de despliegue (copiar y pegar en SSH)" right={<Badge tone="steel">zero-downtime</Badge>} />
           <div className="grid md:grid-cols-2 gap-3">
-            <Cmd title="1 · En tu PC — versión en GitHub + paquete" cmd={`git tag v1.5.0 && git push origin v1.5.0
-tar --exclude='.git' --exclude='node_modules' \\
-  -czf taller-uno-v1.5.0.tar.gz .`} />
-            <Cmd title="2 · Subir el release al VPS" cmd={`scp taller-uno-v1.5.0.tar.gz \\
-  root@vps-xxxx.ovh.net:/opt/erp/releases/`} />
-            <Cmd title="3 · En el VPS — desplegar sin tocar los datos" cmd={`ssh root@vps-xxxx.ovh.net
-cd /opt/erp
-mkdir -p app && tar -xzf releases/taller-uno-v1.5.0.tar.gz -C app
-docker compose -f app/docker-compose.yml run --rm api npm run migrate
-docker compose -f app/docker-compose.yml up -d --build --no-deps web api
-docker image prune -f`} />
-            <Cmd title="4 · Respaldo automático (cron diario 02:00)" cmd={`0 2 * * * docker compose -f /opt/erp/app/docker-compose.yml \\
-  exec -T db pg_dump -U erp taller_uno | gzip \\
-  > /opt/erp/backups/db-$(date +\\%F).sql.gz`} />
+            <Cmd title="1 · Subir el release al VPS (File Manager o scp)" cmd={`scp taller-uno.zip root@vps-xxxx.ovh.net:/var/www/`} />
+            <Cmd title="2 · En el VPS — desplegar sin tocar los datos" cmd={`ssh root@vps-xxxx.ovh.net\ncd /var/www\nunzip -o taller-uno.zip -d taller-uno\ncd taller-uno && npm install && npm run build\ndocker compose up -d --build --no-deps web\ndocker image prune -f`} />
+            <Cmd title="3 · Primera vez — crear la base (volumen persistente)" cmd={`docker compose up -d db redis\n# PostgreSQL 16 + Redis 7 en volúmenes\ndocker compose exec -T db pg_dump -U taller taller_uno > /dev/null  # smoke test`} />
+            <Cmd title="4 · Respaldo automático (cron diario 03:00)" cmd={`crontab -e\n0 3 * * * cd /var/www/taller-uno && docker compose exec -T db \\\n  pg_dump -U taller taller_uno | gzip > /respaldos/taller-$(date +\\%F).sql.gz`} />
           </div>
           <div className="grid md:grid-cols-3 gap-3 mt-4">
             <div className="rounded-lg bg-pinel/60 border border-pine/20 p-3">
               <div className="flex items-center gap-2 text-pined font-bold text-[12.5px]"><Icon name="warehouse" size={14} />Datos intactos</div>
-              <p className="text-[11.5px] text-pined/80 mt-1">PostgreSQL vive en el volumen <span className="font-mono">/opt/erp/data</span>, fuera del código. Actualizar el .tar nunca lo toca.</p>
+              <p className="text-[11.5px] text-pined/80 mt-1">La base vive en el volumen <span className="font-mono text-[10.5px]">datos_pg</span>; el .zip solo pisa código.</p>
             </div>
-            <div className="rounded-lg bg-oakl/60 border border-oak/25 p-3">
-              <div className="flex items-center gap-2 text-oakd font-bold text-[12.5px]"><Icon name="refresh" size={14} />Rollback en 30s</div>
-              <p className="text-[11.5px] text-oakd/80 mt-1">Cada release queda en <span className="font-mono">releases/</span>. Si algo falla, re-despliegas el tar anterior y listo.</p>
+            <div className="rounded-lg bg-oakl/70 border border-oak/25 p-3">
+              <div className="flex items-center gap-2 text-oakd font-bold text-[12.5px]"><Icon name="clock" size={14} />Corte ~2 segundos</div>
+              <p className="text-[11.5px] text-oakd/80 mt-1">Solo se reinicia el contenedor web. Ni clientes ni trabajadores lo notan.</p>
             </div>
-            <div className="rounded-lg bg-steell/70 border border-steel/25 p-3">
-              <div className="flex items-center gap-2 text-steel font-bold text-[12.5px]"><Icon name="users" size={14} />Nadie lo nota</div>
-              <p className="text-[11.5px] text-steel/80 mt-1">Nginx mantiene las conexiones; los workers del bus drenan la cola antes del reinicio. Tus trabajadores siguen vendiendo.</p>
+            <div className="rounded-lg bg-steell border border-steel/25 p-3">
+              <div className="flex items-center gap-2 text-steel font-bold text-[12.5px]"><Icon name="refresh" size={14} />Rollback en 30 s</div>
+              <p className="text-[11.5px] text-steel/80 mt-1">Guarda el .zip anterior: <span className="font-mono text-[10.5px]">unzip + build + restart</span>.</p>
             </div>
           </div>
-        </div>
-      </Card>
-
-      <Card className="anim-up border-brick/30">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="font-display font-bold text-[15px] text-ink">Zona de riesgo</div>
-            <p className="text-[12px] text-mut mt-0.5">Restablece la demo a los datos de fábrica (borra lo guardado en este navegador).</p>
-          </div>
-          <Btn variant="danger" icon="refresh" onClick={reset}>Restablecer datos demo</Btn>
         </div>
       </Card>
     </div>

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { buildPayLink, useStore } from "../lib/store";
+import { buildPayLink, saldoDe, useStore } from "../lib/store";
 import type { PayLink } from "../lib/types";
 import { copyText, fmtDate, money, num } from "../lib/util";
 import { Badge, Btn, Card, Field, Icon, Input, linkTone, Modal, SectionTitle, Select, Stat } from "../components/ui";
 
 export default function Cobros() {
   const { state, dispatch, toast } = useStore();
-  const [form, setForm] = useState({ mode: "orden" as "orden" | "libre", orderId: "", amount: "", concept: "", customer: "", days: "7" });
+  const [form, setForm] = useState({ mode: "orden" as "orden" | "saldo" | "libre", orderId: "", amount: "", concept: "", customer: "", days: "7" });
   const [checkout, setCheckout] = useState<PayLink | null>(null);
   const [payTab, setPayTab] = useState<"tarjeta" | "qr">("tarjeta");
   const [card, setCard] = useState({ num: "4242 4242 4242 4242", exp: "12/27", cvv: "123" });
@@ -18,7 +18,7 @@ export default function Cobros() {
   const cerrados = state.payLinks.filter((l) => l.status !== "pendiente").length;
   const conv = cerrados ? Math.round((state.payLinks.filter((l) => l.status === "pagado").length / cerrados) * 100) : 0;
 
-  const openOrders = state.orders.filter((o) => o.payment !== "pagado" && o.status !== "anulado");
+  const openOrders = state.orders.filter((o) => !["anulado", "cancelado"].includes(o.status) && saldoDe(o) > 0);
 
   const generate = () => {
     let amount = 0, concept = "", customer = "", orderId: string | null = null;
@@ -26,15 +26,21 @@ export default function Cobros() {
       const o = state.orders.find((x) => x.id === form.orderId);
       if (!o) return toast("Selecciona un pedido", "warn");
       amount = o.total; concept = `Pedido ${o.code} · ${o.items.length} ítem(s)`; customer = o.customer; orderId = o.id;
+    } else if (form.mode === "saldo") {
+      const o = state.orders.find((x) => x.id === form.orderId);
+      if (!o) return toast("Selecciona un pedido", "warn");
+      amount = saldoDe(o);
+      if (amount <= 0) return toast("Ese pedido no tiene saldo pendiente", "warn");
+      concept = `Saldo ${o.code}`; customer = o.customer; orderId = o.id;
     } else {
       amount = Number(form.amount);
       if (!amount || !form.concept.trim()) return toast("Monto y concepto son obligatorios", "warn");
       concept = form.concept.trim(); customer = form.customer.trim() || "Cliente web";
     }
-    const link = buildPayLink(state, amount, concept, customer, orderId, Number(form.days) || 7);
+    const link = buildPayLink(state, Math.round(amount * 100) / 100, concept, customer, orderId, Number(form.days) || 7);
     dispatch({ type: "CREATE_PAYLINK", link });
     setForm({ mode: "orden", orderId: "", amount: "", concept: "", customer: "", days: "7" });
-    toast(`Link de un solo uso generado por ${money(amount)}`);
+    toast(`Link de un solo uso generado por ${money(link.amount)}`);
   };
 
   const doPay = () => {
@@ -50,7 +56,6 @@ export default function Cobros() {
   };
 
   const closeCheckout = () => { setCheckout(null); setPaying("idle"); setPayTab("tarjeta"); };
-
   const url = (l: PayLink) => `${state.settings.linkBase}/${l.token}`;
 
   return (
@@ -73,25 +78,21 @@ export default function Cobros() {
       </div>
 
       <div className="grid lg:grid-cols-5 gap-4">
-        {/* generator */}
         <Card className="lg:col-span-2 anim-up h-fit sticky top-20">
           <SectionTitle kicker="Un solo uso" title="Generar link de cobro" />
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setForm({ ...form, mode: "orden" })} className={`rounded-lg border px-3 py-2.5 text-left transition-all ${form.mode === "orden" ? "border-pine bg-pinel/50" : "border-line hover:border-line2"}`}>
-                <div className="text-[12.5px] font-bold text-ink">Desde pedido</div>
-                <div className="text-[10.5px] text-mut">monto y cliente automáticos</div>
-              </button>
-              <button onClick={() => setForm({ ...form, mode: "libre" })} className={`rounded-lg border px-3 py-2.5 text-left transition-all ${form.mode === "libre" ? "border-pine bg-pinel/50" : "border-line hover:border-line2"}`}>
-                <div className="text-[12.5px] font-bold text-ink">Monto libre</div>
-                <div className="text-[10.5px] text-mut">anticipos, reservas, abonos</div>
-              </button>
+            <div className="grid grid-cols-3 gap-2">
+              {([["orden", "Pedido total"], ["saldo", "Solo saldo"], ["libre", "Monto libre"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setForm({ ...form, mode: k })} className={`rounded-lg border px-2 py-2.5 text-left transition-all ${form.mode === k ? "border-pine bg-pinel/50" : "border-line hover:border-line2"}`}>
+                  <div className="text-[12px] font-bold text-ink leading-tight">{l}</div>
+                </button>
+              ))}
             </div>
-            {form.mode === "orden" ? (
-              <Field label="Pedido pendiente">
+            {form.mode !== "libre" ? (
+              <Field label={form.mode === "saldo" ? "Pedido con saldo pendiente" : "Pedido pendiente"}>
                 <Select value={form.orderId} onChange={(e) => setForm({ ...form, orderId: e.target.value })}>
                   <option value="">— seleccionar —</option>
-                  {openOrders.map((o) => <option key={o.id} value={o.id}>{o.code} · {o.customer} · {money(o.total)}</option>)}
+                  {openOrders.map((o) => <option key={o.id} value={o.id}>{o.code} · {o.customer} · {form.mode === "saldo" ? `saldo ${money(saldoDe(o))}` : money(o.total)}</option>)}
                 </Select>
               </Field>
             ) : (
@@ -110,12 +111,11 @@ export default function Cobros() {
             </Field>
             <Btn className="w-full" icon="link" onClick={generate}>Generar link de un solo uso</Btn>
             <p className="text-[11px] text-fog leading-relaxed">
-              El link acepta <b>tarjetas, débito y QR PayPhone</b>. Al pagarse, emite la factura electrónica (SRI), registra el asiento contable y marca el pedido como pagado — sin intervención manual.
+              El link acepta <b>tarjetas, débito y QR PayPhone</b>. Al pagarse, el recibo queda <b className="text-pined">validado automáticamente</b> (webhook firmado), emite la factura electrónica (SRI) y registra el asiento contable.
             </p>
           </div>
         </Card>
 
-        {/* links list */}
         <div className="lg:col-span-3 space-y-2.5 anim-up">
           {state.payLinks.map((l) => (
             <div key={l.id} className="bg-card border border-line rounded-xl p-3.5 hover:border-pine/40 hover:shadow-md transition-all">
@@ -145,7 +145,6 @@ export default function Cobros() {
         </div>
       </div>
 
-      {/* checkout sandbox */}
       <Modal open={!!checkout} onClose={closeCheckout} kicker="Pasarela · demostración" title="Checkout PayPhone" wide>
         {checkout && (
           <div className="max-w-md mx-auto">
@@ -194,7 +193,7 @@ export default function Cobros() {
                     <Btn className="w-full mt-4" disabled={paying === "processing"} onClick={doPay} icon={paying === "processing" ? "refresh" : "card"}>
                       {paying === "processing" ? "Procesando con el banco…" : `Pagar ${money(checkout.amount)}`}
                     </Btn>
-                    <p className="text-center text-[10.5px] text-fog mt-2.5 flex items-center justify-center gap-1"><Icon name="key" size={11} />Transacción cifrada · PCI-DSS · {num(checkout.amount * 100)} en cents procesados por el bus</p>
+                    <p className="text-center text-[10.5px] text-fog mt-2.5 flex items-center justify-center gap-1"><Icon name="key" size={11} />Transacción cifrada · PCI-DSS · recibo auto-validado</p>
                   </div>
                 </div>
               </>
@@ -204,10 +203,10 @@ export default function Cobros() {
                 <div className="font-display font-extrabold text-[22px] text-ink">¡Pago aprobado!</div>
                 <div className="text-[13px] text-mut mt-1">{money(checkout.amount)} · autorización <span className="font-mono">{auth}</span></div>
                 <div className="mt-4 mx-auto max-w-xs rounded-lg bg-pinel/60 border border-pine/20 p-3 text-left text-[11.5px] text-pined space-y-1">
-                  <div>✓ Webhook recibido y verificado</div>
+                  <div>✓ Webhook recibido, firmado y verificado</div>
+                  <div>✓ Recibo validado automáticamente (sin revisión manual)</div>
                   <div>✓ Factura electrónica emitida (SRI)</div>
                   <div>✓ Asiento contable registrado</div>
-                  <div>✓ Pedido marcado como pagado</div>
                 </div>
                 <Btn className="mt-4" onClick={closeCheckout}>Listo</Btn>
               </div>

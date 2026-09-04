@@ -1,10 +1,10 @@
-import { createContext, useContext, useEffect, useReducer, useRef } from "react";
+import { createContext, useContext, useEffect, useReducer } from "react";
 import type { ReactNode } from "react";
-import type { AppState, EventItem, Invoice, JournalEntry, Order, OrderKind, OrderStatus, PayLink, Product, WorkOrder, WoStatus, Channel } from "./types";
+import type { AppState, Channel, EventItem, Invoice, JournalEntry, Order, OrderKind, OrderStatus, PayLink, Product, WorkOrder, WoStatus } from "./types";
 import { seedState } from "./seed";
-import { calcTotals, IVA, money, sriAuth, token, uid } from "./util";
+import { calcTotals, money, sriAuth, token, uid } from "./util";
 
-const LS_KEY = "taller-uno-v2";
+const LS_KEY = "bletia-suite-v1";
 
 type Action = { type: string; [k: string]: any };
 
@@ -31,8 +31,31 @@ const mkEvent = (type: EventItem["type"], msg: string): EventItem => ({ id: uid(
 const woProgress: Record<WoStatus, number> = { planificada: 5, corte: 25, ensamblaje: 55, acabado: 78, qa: 90, terminada: 100 };
 export const woFlow: WoStatus[] = ["planificada", "corte", "ensamblaje", "acabado", "qa", "terminada"];
 
-/* Máquina de estados BLETIA (FlujoErp) — pedidos y ventas */
-export const orderFlow: OrderStatus[] = ["pendiente", "por_aprobar", "aprobado", "fabricacion", "en_bodega", "listo_despacho", "despachado", "entregado"];
+/* ── Máquina de estados portada de EstadoPedidoErp.php (código real BLETIA) ── */
+export const orderFlow: OrderStatus[] = [
+  "pendiente", "por_aprobar", "aprobado", "confirmado", "enviado_proveedor",
+  "en_bodega", "listo_despacho", "despachado", "entregado",
+];
+
+export const estadosLabel: Record<OrderStatus, string> = {
+  borrador: "Borrador", pendiente: "Pendiente", por_aprobar: "Por aprobar", aprobado: "Aprobado",
+  confirmado: "Confirmado", enviado_proveedor: "Enviado a proveedor", en_fabricacion: "En fabricación",
+  en_produccion: "En producción", listo_proveedor: "Listo en proveedor", en_bodega: "En bodega",
+  listo_despacho: "Listo despacho", despachado: "Despachado", entregado: "Entregado",
+  anulado: "Anulado", cancelado: "Cancelado",
+};
+
+/* Lo que el CLIENTE ve en su link de seguimiento (ESTADOS_CLIENTE del código real) */
+export const estadosCliente: Record<OrderStatus, string> = {
+  borrador: "En proceso", pendiente: "En revisión", por_aprobar: "En revisión", aprobado: "Confirmado",
+  confirmado: "Confirmado", enviado_proveedor: "En fabricación", en_fabricacion: "En fabricación",
+  en_produccion: "En producción (taller)", listo_proveedor: "Casi listo", en_bodega: "En bodega",
+  listo_despacho: "Listo para despacho", despachado: "Despachado", entregado: "Entregado",
+  anulado: "Anulado", cancelado: "Anulado",
+};
+
+export const pagadoValidado = (o: Order) => o.recibos.filter((r) => r.validado).reduce((a, r) => a + r.amount, 0);
+export const saldoDe = (o: Order) => Math.max(0, Math.round((o.total - pagadoValidado(o)) * 100) / 100);
 
 const pad9 = (n: number) => String(n).padStart(9, "0");
 
@@ -80,25 +103,24 @@ function reduce(s: AppState, a: Action): AppState {
       };
     }
     case "ADVANCE_ORDER": {
-      const id = a.id as string;
+      const order = s.orders.find((o) => o.id === a.id)!;
       const status = a.status as OrderStatus;
-      const order = s.orders.find((o) => o.id === id)!;
-      const entry = { ts: new Date().toISOString(), user: "Paola C.", msg: `Estado: ${order.status} → ${status}` };
+      const entry = { ts: new Date().toISOString(), user: "Paola C.", msg: `Estado: ${estadosLabel[order.status]} → ${estadosLabel[status]}` };
       if (status === "entregado") {
         const e = emitInvoice(s, order);
         return {
           ...s,
-          orders: s.orders.map((o) => (o.id === id ? { ...o, status, trace: [...o.trace, entry] } : o)),
+          orders: s.orders.map((o) => (o.id === a.id ? { ...o, status, trace: [...o.trace, entry] } : o)),
           invoices: [e.invoice, ...s.invoices],
           journal: [...e.entries, ...s.journal],
           settings: { ...s.settings, sequence: e.seq },
-          events: [mkEvent("venta", `${order.code} ENTREGADO · ${order.customer}`), mkEvent("factura", `Factura ${e.number} emitida y autorizada SRI`), ...s.events].slice(0, 90),
+          events: [mkEvent("venta", `${order.code} ENTREGADO · el cliente ve "${estadosCliente[status]}"`), mkEvent("factura", `Factura ${e.number} emitida y autorizada SRI`), ...s.events].slice(0, 90),
         };
       }
       return {
         ...s,
-        orders: s.orders.map((o) => (o.id === id ? { ...o, status, trace: [...o.trace, entry] } : o)),
-        events: [mkEvent("venta", `${order.code} pasó a ${status.toUpperCase()}`), ...s.events].slice(0, 90),
+        orders: s.orders.map((o) => (o.id === a.id ? { ...o, status, trace: [...o.trace, entry] } : o)),
+        events: [mkEvent("venta", `${order.code} pasó a ${estadosLabel[status].toUpperCase()}`), ...s.events].slice(0, 90),
       };
     }
     case "ANULA_ORDER": {
@@ -109,39 +131,51 @@ function reduce(s: AppState, a: Action): AppState {
         events: [mkEvent("venta", `${order.code} ${a.status === "anulado" ? "ANULADO" : "CANCELADO"} · ${a.motivo}`), ...s.events].slice(0, 90),
       };
     }
-    case "SET_TRANSPORT": {
-      const o = s.orders.find((x) => x.id === a.id)!;
-      const tr = s.suppliers.find((sp) => sp.id === a.transportId);
+    case "SET_TRANSPORT":
       return {
         ...s,
-        orders: s.orders.map((x) => (x.id === a.id ? { ...x, transportId: a.transportId as string | null, trace: [...x.trace, { ts: new Date().toISOString(), user: "Luis Ch.", msg: `Transportista asignado: ${tr?.name ?? "—"}` }] } : x)),
-        events: [mkEvent("logistica", `${o.code} · transportista ${tr?.name ?? "—"} asignado`), ...s.events].slice(0, 90),
+        orders: s.orders.map((o) => (o.id === a.id ? { ...o, transportId: a.transportId } : o)),
       };
-    }
+    /* ── RecibosErp: el pago NO cuenta hasta que el dueño lo valida ── */
     case "ADD_RECIBO": {
       const order = s.orders.find((o) => o.id === a.orderId)!;
       const code = `REC-${String(s.settings.sequence.recibo).padStart(4, "0")}`;
-      const recibo = { id: uid(), code, date: new Date().toISOString(), amount: a.amount as number, method: a.method as string, note: (a.note as string) || "Abono registrado" };
-      const pagado = order.recibos.reduce((x, r) => x + r.amount, 0) + recibo.amount >= order.total - 0.01;
-      const number = `001-001-${pad9(s.settings.sequence.invoice)}`;
+      const recibo = { id: uid(), code, date: new Date().toISOString(), amount: a.amount as number, method: a.method as string, note: (a.note as string) || "Abono registrado", validado: false };
       return {
         ...s,
-        orders: s.orders.map((o) => (o.id === a.orderId ? { ...o, recibos: [...o.recibos, recibo], payment: pagado ? "pagado" as const : "parcial" as const, trace: [...o.trace, { ts: new Date().toISOString(), user: "Rocío M.", msg: `Recibo ${code} · ${money(recibo.amount)} · ${recibo.method}` }] } : o)),
+        orders: s.orders.map((o) => (o.id === a.orderId ? { ...o, recibos: [...o.recibos, recibo], trace: [...o.trace, { ts: new Date().toISOString(), user: "Rocío M.", msg: `Recibo ${code} · ${money(recibo.amount)} · ${recibo.method} — esperando validación del dueño` }] } : o)),
+        settings: { ...s.settings, sequence: { ...s.settings.sequence, recibo: s.settings.sequence.recibo + 1 } },
+        events: [mkEvent("pago", `${code} registrado · ${money(recibo.amount)} · requiere validación`), ...s.events].slice(0, 90),
+      };
+    }
+    case "VALIDAR_RECIBO": {
+      const order = s.orders.find((o) => o.id === a.orderId)!;
+      const rec = order.recibos.find((r) => r.id === a.reciboId)!;
+      const orders = s.orders.map((o) => {
+        if (o.id !== a.orderId) return o;
+        const recibos = o.recibos.map((r) => (r.id === a.reciboId ? { ...r, validado: true } : r));
+        const totalPagado = recibos.filter((r) => r.validado).reduce((x, r) => x + r.amount, 0);
+        const payment = totalPagado >= o.total - 0.01 ? ("pagado" as const) : ("parcial" as const);
+        return { ...o, recibos, payment, trace: [...o.trace, { ts: new Date().toISOString(), user: "Andrés Y.", msg: `${rec.code} · ${money(rec.amount)} · ${rec.method} — pago VALIDADO por el dueño` }] };
+      });
+      const validadoTotal = order.recibos.filter((r) => r.validado || r.id === a.reciboId).reduce((x, r) => x + r.amount, 0);
+      const esTotal = validadoTotal >= order.total - 0.01;
+      return {
+        ...s,
+        orders,
         journal: [
-          { id: uid(), date: new Date().toISOString(), doc: code, account: "1020 Bancos Pichincha", detail: `${recibo.method} · ${order.code}`, debit: recibo.amount, credit: 0 },
-          { id: uid(), date: new Date().toISOString(), doc: code, account: pagado ? "1030 Cuentas por cobrar" : "2050 Anticipos clientes", detail: pagado ? `Pago total ${order.code}` : `Anticipo ${order.code}`, debit: 0, credit: recibo.amount },
+          { id: uid(), date: new Date().toISOString(), doc: rec.code, account: "1020 Bancos Pichincha", detail: `${rec.method} · ${order.code}`, debit: rec.amount, credit: 0 },
+          { id: uid(), date: new Date().toISOString(), doc: rec.code, account: esTotal ? "1030 Cuentas por cobrar" : "2050 Anticipos clientes", detail: esTotal ? `Pago total ${order.code}` : `Anticipo ${order.code} · validado`, debit: 0, credit: rec.amount },
           ...s.journal,
         ],
-        settings: { ...s.settings, sequence: { ...s.settings.sequence, recibo: s.settings.sequence.recibo + 1 } },
-        events: [mkEvent("pago", `Recibo ${code} · ${money(recibo.amount)} · ${order.customer} · saldo ${pagado ? "$0,00" : money(Math.max(0, order.total - order.recibos.reduce((x, r) => x + r.amount, 0) - recibo.amount))}`), ...s.events].slice(0, 90),
+        events: [mkEvent("pago", `${rec.code} VALIDADO · ${money(rec.amount)} · saldo ${money(Math.max(0, order.total - validadoTotal))} · ${order.customer}`), ...s.events].slice(0, 90),
       };
     }
     case "SEND_CONFIRM": {
       const order = s.orders.find((o) => o.id === a.id)!;
-      const tk = `cf_${token(10)}`;
       return {
         ...s,
-        orders: s.orders.map((o) => (o.id === a.id ? { ...o, confirmToken: tk, trace: [...o.trace, { ts: new Date().toISOString(), user: "sistema", msg: "Link único de confirmación (con fotos de spec) enviado al cliente" }] } : o)),
+        orders: s.orders.map((o) => (o.id === a.id ? { ...o, confirmToken: `cf_${token(10)}`, trace: [...o.trace, { ts: new Date().toISOString(), user: "sistema", msg: "Link único de confirmación (con fotos de spec) enviado al cliente" }] } : o)),
         events: [mkEvent("link", `Link único enviado · ${order.code} · ${order.customer} confirma specs con fotos`), ...s.events].slice(0, 90),
       };
     }
@@ -155,11 +189,10 @@ function reduce(s: AppState, a: Action): AppState {
     }
     case "CREATE_DESPACHO": {
       const d = a.despacho;
-      const order = s.orders.find((o) => o.id === d.orderId)!;
       return {
         ...s,
         despachos: [d, ...s.despachos],
-        orders: s.orders.map((o) => (o.id === d.orderId && o.status !== "despachado" ? { ...o, status: "despachado" as const, transportId: d.transportId, trace: [...o.trace, { ts: new Date().toISOString(), user: "Luis Ch.", msg: `Despacho ${d.code} creado · ${d.bultos} bultos · placa ${d.placa}` }] } : o)),
+        orders: s.orders.map((o) => (o.id === d.orderId ? { ...o, status: "despachado" as const, transportId: d.transportId, trace: [...o.trace, { ts: new Date().toISOString(), user: "Luis Ch.", msg: `Despacho ${d.code} creado · ${d.bultos} bultos · placa ${d.placa}` }] } : o)),
         settings: { ...s.settings, sequence: { ...s.settings.sequence, despacho: s.settings.sequence.despacho + 1 } },
         events: [mkEvent("logistica", `${d.code} en preparación · ${d.bultos} bultos → ${d.city}`), ...s.events].slice(0, 90),
       };
@@ -190,7 +223,6 @@ function reduce(s: AppState, a: Action): AppState {
       const numero = `001-001-${pad9(s.settings.sequence.guia)}`;
       const transport = s.suppliers.find((sp) => sp.id === d.transportId);
       const xml = `<guiaRemision>\n  <infoTributaria><ruc>${s.settings.company.ruc}</ruc><razonSocial>${s.settings.company.name}</razonSocial></infoTributaria>\n  <infoGuia><motivo>${d.motivo === "venta" ? "Venta" : "Traslado"}</motivo><dirPartida>${s.settings.company.address}</dirPartida></infoGuia>\n  <transportista><razonSocial>${transport?.name ?? ""}</razonSocial><placa>${d.placa}</placa></transportista>\n  <ruta>${d.ruta}</ruta>\n  <bultos>${d.bultos}</bultos><pesoKg>${d.pesoKg}</pesoKg>\n</guiaRemision>`;
-      const order = s.orders.find((o) => o.id === d.orderId)!;
       return {
         ...s,
         despachos: s.despachos.map((x) => (x.id === a.id ? { ...x, guia: { numero, auth: sriAuth(), xml } } : x)),
@@ -220,7 +252,7 @@ function reduce(s: AppState, a: Action): AppState {
     case "PAY_LINK": {
       const pl = s.payLinks.find((l) => l.id === a.id)!;
       const payLinks = s.payLinks.map((l) => (l.id === a.id ? { ...l, status: "pagado" as const, method: a.method, last4: a.last4, authCode: String(Math.floor(10000000 + Math.random() * 89999999)) } : l));
-      const extra: EventItem[] = [mkEvent("pago", `PayPhone acreditó ${money(pl.amount)} · ${pl.concept}`)];
+      const extra: EventItem[] = [mkEvent("pago", `PayPhone acreditó ${money(pl.amount)} · ${pl.concept} · validado automáticamente`)];
       if (pl.orderId) {
         const order = s.orders.find((o) => o.id === pl.orderId)!;
         const e = emitInvoice(s, { ...order, payment: "pagado" });
@@ -228,7 +260,7 @@ function reduce(s: AppState, a: Action): AppState {
         return {
           ...s,
           payLinks,
-          orders: s.orders.map((o) => (o.id === pl.orderId ? { ...o, payment: "pagado" as const, recibos: [...o.recibos, { id: uid(), code, date: new Date().toISOString(), amount: pl.amount, method: `${a.method} •••• ${a.last4}`, note: "Cobro automático vía link PayPhone" }], trace: [...o.trace, { ts: new Date().toISOString(), user: "sistema", msg: `Link PayPhone pagado · ${money(pl.amount)} · ${a.method} •••• ${a.last4}` }] } : o)),
+          orders: s.orders.map((o) => (o.id === pl.orderId ? { ...o, payment: "pagado" as const, recibos: [...o.recibos, { id: uid(), code, date: new Date().toISOString(), amount: pl.amount, method: `${a.method} •••• ${a.last4}`, note: "Cobro automático vía link PayPhone", validado: true }], trace: [...o.trace, { ts: new Date().toISOString(), user: "sistema", msg: `Link PayPhone pagado · ${money(pl.amount)} · ${a.method} •••• ${a.last4} · validado automáticamente` }] } : o)),
           invoices: [e.invoice, ...s.invoices],
           journal: [...e.entries, ...s.journal],
           settings: { ...s.settings, sequence: { ...e.seq, recibo: s.settings.sequence.recibo + 1 } },
@@ -301,6 +333,47 @@ function reduce(s: AppState, a: Action): AppState {
         events: [mkEvent("factura", `Nota de crédito ${number} emitida · anula ${inv.number} · ${a.motivo}`), ...s.events].slice(0, 90),
       };
     }
+    case "LOGIN":
+      return { ...s, session: { ...s.session, user: { name: a.name, role: a.role } } };
+    case "LOGOUT":
+      return { ...s, session: { ...s.session, user: null } };
+    case "ADD_CUENTA":
+      return { ...s, cuentas: [a.cuenta, ...s.cuentas] };
+    /* ── CMS: páginas, blog y productos de la web pública ── */
+    case "CMS_CONFIG":
+      return { ...s, cms: { ...s.cms, config: { ...s.cms.config, ...a.patch } } };
+    case "CMS_PAGE": {
+      const prev = s.cms.paginas.find((p) => p.id === a.page.id);
+      const redirects = prev && prev.slug !== a.page.slug ? [...s.cms.redirects, { de: `/${prev.slug}`, a: `/${a.page.slug}`, ts: new Date().toISOString() }] : s.cms.redirects;
+      const paginas = prev ? s.cms.paginas.map((p) => (p.id === a.page.id ? a.page : p)) : [...s.cms.paginas, a.page];
+      return { ...s, cms: { ...s.cms, paginas, redirects }, events: [mkEvent("web", `Página "${a.page.titulo}" publicada en /${a.page.slug}${prev && prev.slug !== a.page.slug ? ` (redirección desde /${prev.slug})` : ""}`), ...s.events].slice(0, 90) };
+    }
+    case "CMS_POST": {
+      const prev = s.cms.posts.find((p) => p.id === a.post.id);
+      const catSlug = (c: string) => c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      let redirects = s.cms.redirects;
+      if (prev && (prev.slug !== a.post.slug || prev.categoria !== a.post.categoria)) {
+        redirects = [...redirects, { de: `/${catSlug(prev.categoria)}/${prev.slug}`, a: `/${catSlug(a.post.categoria)}/${a.post.slug}`, ts: new Date().toISOString() }];
+      }
+      const posts = prev ? s.cms.posts.map((p) => (p.id === a.post.id ? a.post : p)) : [a.post, ...s.cms.posts];
+      return { ...s, cms: { ...s.cms, posts, redirects }, events: [mkEvent("web", `Entrada "${a.post.titulo}" publicada en /${catSlug(a.post.categoria)}/${a.post.slug}`), ...s.events].slice(0, 90) };
+    }
+    case "CMS_PRODUCT": {
+      const prev = s.cms.productos.find((p) => p.id === a.prod.id);
+      const redirects = prev && prev.slug !== a.prod.slug ? [...s.cms.redirects, { de: `/producto/${prev.slug}`, a: `/producto/${a.prod.slug}`, ts: new Date().toISOString() }] : s.cms.redirects;
+      const productos = prev ? s.cms.productos.map((p) => (p.id === a.prod.id ? a.prod : p)) : [...s.cms.productos, a.prod];
+      return { ...s, cms: { ...s.cms, productos, redirects }, events: [mkEvent("web", `Producto "${a.prod.nombre}" publicado en /producto/${a.prod.slug}`), ...s.events].slice(0, 90) };
+    }
+    case "CMS_DEL":
+      return {
+        ...s,
+        cms: {
+          ...s.cms,
+          paginas: a.kind === "pagina" ? s.cms.paginas.filter((x) => x.id !== a.id) : s.cms.paginas,
+          posts: a.kind === "post" ? s.cms.posts.filter((x) => x.id !== a.id) : s.cms.posts,
+          productos: a.kind === "producto" ? s.cms.productos.filter((x) => x.id !== a.id) : s.cms.productos,
+        },
+      };
     case "SETTINGS":
       return { ...s, settings: { ...s.settings, ...a.patch } };
     case "UPLOAD_MEDIA":

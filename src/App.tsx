@@ -16,6 +16,9 @@ import Contabilidad from "./views/Contabilidad";
 import Accesos from "./views/Accesos";
 import Seguridad from "./views/Seguridad";
 import Ajustes from "./views/Ajustes";
+import Sitio from "./views/Sitio";
+import Login from "./views/Login";
+import Contenido from "./views/Contenido";
 
 function Splash({ done }: { done: boolean }) {
   return (
@@ -36,7 +39,7 @@ function Splash({ done }: { done: boolean }) {
 }
 
 function Workspace() {
-  const { toasts } = useStore();
+  const { toasts, state } = useStore();
   const [view, setView] = useState<View>("dashboard");
   const [param, setParam] = useState<string | undefined>();
   const [visit, setVisit] = useState(0);
@@ -53,6 +56,28 @@ function Workspace() {
     setVisit((x) => x + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  /* bletia.ec/dash → sin sesión, /dash/login */
+  const user = state.session.user;
+  if (view !== "web" && !user) {
+    return (
+      <>
+        <Splash done={ready} />
+        <Login nav={nav} />
+        <ToastHost toasts={toasts} />
+      </>
+    );
+  }
+
+  /* www.bletia.ec → sitio público SIN el header/sidebar del panel interno */
+  if (view === "web") {
+    return (
+      <>
+        <Sitio key={`w${visit}`} nav={nav} />
+        <ToastHost toasts={toasts} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -71,6 +96,7 @@ function Workspace() {
         {view === "accesos" && <Accesos key={`s${visit}`} />}
         {view === "seguridad" && <Seguridad key={`g${visit}`} />}
         {view === "ajustes" && <Ajustes key={`j${visit}`} />}
+        {view === "contenido" && <Contenido key={`n${visit}`} />}
       </Shell>
       <ToastHost toasts={toasts} />
     </>

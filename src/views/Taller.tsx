@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useStore, woFlow } from "../lib/store";
 import type { WorkOrder, WoStatus } from "../lib/types";
 import { fmtDate, money, uid } from "../lib/util";
-import { Badge, Btn, Card, Field, Icon, Input, linkTone, Modal, Progress, SectionTitle, Select } from "../components/ui";
+import { Badge, Btn, Card, Field, Icon, Input, Modal, Progress, SectionTitle, Select } from "../components/ui";
 
-const WO_ICON: Record<WoStatus, string> = { planificada: "doc", corte: "saw", ensamblaje: "gear", acabado: "brush", qa: "check", terminada: "check" };
+const woTone: Record<string, "fog" | "oak" | "pine" | "steel" | "moss"> = {
+  planificada: "fog", corte: "oak", ensamblaje: "pine", acabado: "steel", qa: "oak", terminada: "moss",
+};
 
 export default function Taller() {
   const { state, dispatch, toast } = useStore();
@@ -24,15 +26,11 @@ export default function Taller() {
     const wo: WorkOrder = {
       id: uid(),
       code: `OF-${2105 + state.workOrders.length}`,
-      productId: p.id,
-      productName: p.name,
-      qty: Number(nw.qty) || 1,
+      productId: p.id, productName: p.name, qty: Number(nw.qty) || 1,
       status: "planificada",
       start: new Date().toISOString(),
       due: nw.due ? new Date(nw.due).toISOString() : new Date(Date.now() + 14 * 864e5).toISOString(),
-      assignedTo: nw.assignedTo,
-      progress: 5,
-      orderId: null,
+      assignedTo: nw.assignedTo, progress: 5, orderId: null,
       materials: nw.mats.filter((m) => m.name).map((m) => ({ name: m.name, qty: m.qty || "1", cost: Number(m.cost) || 0 })),
       laborCost: Number(nw.labor) || 0,
     };
@@ -50,14 +48,14 @@ export default function Taller() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3 anim-up">
         <div>
-          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">MES · fabricación propia</div>
+          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">MES · fabricación propia (en_producción del flujo BLETIA)</div>
           <h1 className="font-display font-extrabold text-[26px] text-ink mt-0.5">Piso de taller</h1>
           <p className="text-[13px] text-mut mt-1">{inProgress.length} órdenes activas · {done.length} terminadas este periodo</p>
         </div>
         <Btn icon="plus" onClick={() => setShow(true)}>Orden de fabricación</Btn>
       </div>
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-2 gap-4 stagger">
+      <div className="grid md:grid-cols-2 gap-4 stagger">
         {inProgress.map((w) => {
           const next = woFlow[woFlow.indexOf(w.status) + 1];
           const stepIdx = woFlow.indexOf(w.status);
@@ -70,10 +68,9 @@ export default function Taller() {
                   <div className="font-display font-bold text-[16px] text-ink leading-tight mt-0.5">{w.qty}× {w.productName}</div>
                   {linkedOrder && <div className="text-[11px] text-steel font-semibold mt-0.5">↳ para {linkedOrder.code} · {linkedOrder.customer}</div>}
                 </div>
-                <Badge tone={linkTone[w.status]} dot>{w.status}</Badge>
+                <Badge tone={woTone[w.status] ?? "oak"} dot>{w.status}</Badge>
               </div>
 
-              {/* stepper */}
               <div className="flex items-center gap-1 mt-3.5">
                 {woFlow.map((s, i) => (
                   <div key={s} className="flex-1">

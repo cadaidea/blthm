@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useStore } from "../lib/store";
+import { saldoDe, useStore } from "../lib/store";
 import { fmtDate, money, num, timeAgo } from "../lib/util";
 import type { View } from "../lib/types";
 import { Badge, Btn, Card, Icon, Progress, SectionTitle, Stat } from "../components/ui";
@@ -14,6 +14,7 @@ const EVENT_ICON: Record<string, { icon: string; tone: string }> = {
   taller: { icon: "saw", tone: "text-oakd bg-oakl" },
   factura: { icon: "doc", tone: "text-steel bg-steell" },
   link: { icon: "link", tone: "text-pine bg-pinel" },
+  logistica: { icon: "truck", tone: "text-steel bg-steell" },
   sistema: { icon: "zap", tone: "text-mut bg-ink/6" },
 };
 
@@ -29,15 +30,16 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
     return [...past, Math.round(state.session.salesToday)];
   }, [state.session.salesToday]);
 
-  const openOrders = state.orders.filter((o) => !["entregado", "anulado"].includes(o.status));
-  const porCobrar = state.orders.filter((o) => o.payment !== "pagado" && o.status !== "anulado").reduce((a, o) => a + o.total, 0);
+  const openOrders = state.orders.filter((o) => !["entregado", "anulado", "cancelado"].includes(o.status));
+  const porCobrar = state.orders.filter((o) => !["anulado", "cancelado"].includes(o.status)).reduce((a, o) => a + saldoDe(o), 0);
+  const porValidar = state.orders.reduce((a, o) => a + o.recibos.filter((r) => !r.validado).length, 0);
   const woActive = state.workOrders.filter((w) => w.status !== "terminada");
   const lowStock = state.products.filter((p) => p.stock.showroom + p.stock.bodega + p.stock.taller <= p.min);
-  const upcoming = openOrders.filter((o) => ["aprobado", "en_bodega", "listo_despacho", "despachado"].includes(o.status)).slice(0, 4);
+  const upcoming = openOrders.filter((o) => ["aprobado", "confirmado", "en_bodega", "listo_despacho", "despachado"].includes(o.status)).slice(0, 4);
 
   const channelData = useMemo(() => {
     const by: Record<string, number> = { tienda: 0, web: 0, link_pago: 0, whatsapp: 0 };
-    state.orders.forEach((o) => { if (o.status !== "anulado") by[o.channel] += o.total; });
+    state.orders.forEach((o) => { if (!["anulado", "cancelado"].includes(o.status)) by[o.channel] += o.total; });
     return [
       { label: "Tienda física", value: by.tienda, color: "#19604f" },
       { label: "Web / catálogo", value: by.web, color: "#38647e" },
@@ -64,45 +66,40 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
 
   return (
     <div className="space-y-5">
-      {/* headline strip */}
       <div className="flex flex-wrap items-end justify-between gap-4 anim-up">
         <div>
-          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">Buenos días, Andrés — {fmtDate(new Date().toISOString())}</div>
+          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">Hola, {state.session.user?.name?.split(" ")[0] ?? "equipo"} — {fmtDate(new Date().toISOString())}</div>
           <h1 className="font-display font-extrabold text-[30px] leading-tight text-ink mt-1">
             El taller factura <span className="text-pine">{money(state.session.salesToday, false)}</span> hoy
           </h1>
           <p className="text-[13px] text-mut mt-1">
-            {num(openOrders.length)} pedidos abiertos · {woActive.length} órdenes en fabricación · {lowStock.length} SKUs bajo mínimo
+            {num(openOrders.length)} pedidos abiertos · {woActive.length} órdenes en fabricación · {porValidar} {porValidar === 1 ? "pago por validar" : "pagos por validar"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Btn variant="outline" icon="box" onClick={() => nav("oms", "stock")}>Vender stock</Btn>
           <Btn variant="outline" icon="saw" onClick={() => nav("oms", "pedido")}>Bajo pedido</Btn>
-          <Btn variant="dark" icon="ext" onClick={() => nav("oms", "online")}>Tomar online</Btn>
+          <Btn variant="dark" icon="ext" onClick={() => nav("web")}>Tienda web</Btn>
           <Btn icon="qr" onClick={() => nav("cobros")}>Cobrar con PayPhone</Btn>
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 stagger">
         <Stat label="Ventas de hoy" value={money(state.session.salesToday)} flash={salesFlash} icon="tag" tone="pine" sub={<span className="text-moss font-semibold">▲ en vivo vía bus de eventos</span>} />
-        <Stat label="Pedidos abiertos" value={num(openOrders.length)} icon="truck" tone="steel" sub={`${openOrders.filter((o) => o.status === "fabricacion").length} en taller · ${openOrders.filter((o) => o.status === "despachado").length} en ruta`} />
-        <Stat label="Por cobrar" value={money(porCobrar)} icon="clock" tone="oak" sub={`${state.orders.filter((o) => o.payment !== "pagado" && o.status !== "anulado").length} facturas pendientes`} />
+        <Stat label="Pedidos abiertos" value={num(openOrders.length)} icon="truck" tone="steel" sub={`${openOrders.filter((o) => ["en_fabricacion", "en_produccion", "enviado_proveedor"].includes(o.status)).length} en fabricación · ${openOrders.filter((o) => o.status === "despachado").length} en ruta`} />
+        <Stat label="Por cobrar" value={money(porCobrar)} icon="clock" tone="oak" sub={porValidar ? `${porValidar} pagos esperando validación` : "sin pagos pendientes de validar"} />
         <Stat label="Órdenes de taller" value={num(woActive.length)} icon="saw" tone="moss" sub={`avance medio ${Math.round(woActive.reduce((a, w) => a + w.progress, 0) / Math.max(1, woActive.length))}%`} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
-        {/* sales + throughput */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="anim-up">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <SectionTitle kicker="Ingresos · últimos 14 días" title="Curva de ventas" right={
-                <div className="text-right">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-fog">Pico del bus</div>
-                  <div className="font-display font-extrabold text-[20px] text-ink num">{num(Math.max(state.session.peakEps, test?.eps ?? 0))} <span className="text-[11px] font-body font-medium text-mut">ev/s</span></div>
-                </div>
-              } />
-            </div>
+            <SectionTitle kicker="Ingresos · últimos 14 días" title="Curva de ventas" right={
+              <div className="text-right">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-fog">Pico del bus</div>
+                <div className="font-display font-extrabold text-[20px] text-ink num">{num(Math.max(state.session.peakEps, test?.eps ?? 0))} <span className="text-[11px] font-body font-medium text-mut">ev/s</span></div>
+              </div>
+            } />
             <Sparkline data={salesSeries} height={110} />
             <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-line">
               <div className="flex items-center gap-2 text-[12px] text-mut">
@@ -126,7 +123,7 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
           <div className="grid sm:grid-cols-2 gap-4">
             <Card className="anim-up">
               <SectionTitle kicker="OMS" title="Ventas por canal" />
-              <Donut slices={channelData} centerTop={money(state.orders.reduce((a, o) => a + (o.status !== "anulado" ? o.total : 0), 0) / 1000, false) + "k"} centerBottom="facturado" />
+              <Donut slices={channelData} centerTop={money(state.orders.reduce((a, o) => a + (!["anulado", "cancelado"].includes(o.status) ? o.total : 0), 0) / 1000, false) + "k"} centerBottom="facturado" />
             </Card>
             <Card className="anim-up">
               <SectionTitle kicker="PIM" title="Top productos" />
@@ -134,7 +131,6 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
             </Card>
           </div>
 
-          {/* upcoming deliveries */}
           <Card className="anim-up" pad>
             <SectionTitle kicker="Logística" title="Próximas entregas" right={<Btn size="sm" variant="ghost" icon="arrow" onClick={() => nav("oms")}>Ver OMS</Btn>} />
             <div className="space-y-2">
@@ -157,7 +153,6 @@ export default function Dashboard({ nav }: { nav: (v: View, p?: string) => void 
           </Card>
         </div>
 
-        {/* right column */}
         <div className="space-y-4">
           <Card className="anim-up" pad={false}>
             <div className="px-4 pt-4">

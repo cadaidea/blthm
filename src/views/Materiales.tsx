@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../lib/store";
-import { fmtDate, money, uid } from "../lib/util";
+import { money, uid } from "../lib/util";
 import { Badge, Btn, Card, Field, Icon, Input, Modal, Progress, SectionTitle, Select, Stat, Tabs, Td, Th } from "../components/ui";
 
 export default function Materiales() {
@@ -20,10 +20,10 @@ export default function Materiales() {
   const bomCost = useMemo(() => {
     if (!bom) return 0;
     const mat = bom.lines.reduce((a, l) => a + l.qty * (matById(l.materialId)?.costUnit ?? 0), 0);
-    return mat + (bom.laborMin / 60) * 4.2; // hora hombre taller ≈ $4,20
+    return mat + (bom.laborMin / 60) * 4.2;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bom, state.materials]);
 
-  /* MRP: demanda de materia prima por órdenes de taller activas */
   const mrp = useMemo(() => {
     const demand: Record<string, { name: string; unit: string; need: number; from: string[] }> = {};
     state.workOrders.filter((w) => w.status !== "terminada").forEach((w) => {
@@ -40,6 +40,7 @@ export default function Materiales() {
       const stock = m?.stock ?? 0;
       return { id, ...d, stock, falta: Math.max(0, Math.round((d.need - stock) * 100) / 100), cost: m?.costUnit ?? 0 };
     }).sort((a, b) => b.falta - a.falta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.workOrders, state.materials, state.boms]);
 
   const faltantes = mrp.filter((r) => r.falta > 0);
@@ -160,7 +161,7 @@ export default function Materiales() {
                   <div className="flex justify-between"><span className="text-mut">Costo en ficha PIM</span><span className="font-mono text-ink num">{money(producto.cost)}</span></div>
                   <div className="flex justify-between"><span className="text-mut">Desviación</span>
                     <Badge tone={Math.abs(bomCost - producto.cost) / producto.cost < 0.12 ? "moss" : "oak"}>
-                      {Math.abs(bomCost - producto.cost) / producto.cost < 0.12 ? "±" : "▲"}{Math.round((Math.abs(bomCost - producto.cost) / producto.cost) * 100)}%
+                      {Math.round((Math.abs(bomCost - producto.cost) / producto.cost) * 100)}%
                     </Badge>
                   </div>
                   <div className="rounded-lg bg-pinel/60 border border-pine/20 p-2.5 flex justify-between items-center">
@@ -197,7 +198,7 @@ export default function Materiales() {
               {faltantes.length > 0 && (
                 <Btn size="sm" variant="oak" icon="zap" className="ml-auto" onClick={() => {
                   dispatch({ type: "EVENTS", events: [{ id: uid(), ts: Date.now(), type: "logistica" as const, msg: `Sugerencia de compra generada · ${faltantes.length} MP por ${money(faltanteValor)}` }] });
-                  toast(`Sugerencia de compra enviada a ${[...new Set(faltantes.map((f) => matById(f.id)?.supplierId))].length} proveedores`);
+                  toast(`Sugerencia de compra enviada a ${new Set(faltantes.map((f) => matById(f.id)?.supplierId)).size} proveedores`);
                 }}>Generar sugerencia de compra</Btn>
               )}
             </div>
@@ -227,7 +228,7 @@ export default function Materiales() {
               <span className="w-9 h-9 rounded-lg bg-oakl text-oakd grid place-items-center shrink-0"><Icon name="zap" size={16} /></span>
               <div className="text-[12.5px] text-mut leading-relaxed">
                 <b className="text-ink">Regla del taller:</b> el MRP multiplica cada BOM por la cantidad de sus órdenes activas. Si la
-                <b className="text-oakd"> Base giratoria metálica</b> está en rojo, el pedido de poltronas no puede pasar de CORTE — el sistema bloquea y sugiere la OC al proveedor de muebles importados.
+                <b className="text-oakd"> base giratoria metálica</b> está en rojo, el pedido de poltronas no puede pasar de CORTE — el sistema bloquea y sugiere la OC al proveedor importador.
               </div>
             </div>
           </Card>

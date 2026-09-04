@@ -2,12 +2,16 @@ import { useState } from "react";
 import { useStore } from "../lib/store";
 import type { AccessLink, AccessRole } from "../lib/types";
 import { copyText, fmtDate, token, uid } from "../lib/util";
-import { Badge, Btn, Card, Field, Icon, Input, linkTone, SectionTitle, Select, Td, Th } from "../components/ui";
+import { Badge, Btn, Card, Field, Icon, Input, SectionTitle, Select, Td, Th } from "../components/ui";
+
+const accTone: Record<AccessLink["status"], "moss" | "steel" | "fog" | "brick"> = {
+  activo: "moss", usado: "steel", expirado: "fog", revocado: "brick",
+};
 
 const ROLE_META: Record<AccessRole, { label: string; scope: string; tone: "pine" | "oak" | "steel" | "moss" | "brick" | "fog" }> = {
   vendedor: { label: "Vendedor", scope: "Catálogo, precios y pedidos propios", tone: "pine" },
   bodega: { label: "Bodega", scope: "Movimientos de stock y kardex", tone: "steel" },
-  contabilidad: { label: "Contabilidad", scope: "CxC, diario y conciliación", tone: "oak" },
+  contabilidad: { label: "Contabilidad", scope: "CxC, recibos por validar y conciliación", tone: "oak" },
   taller: { label: "Taller", scope: "Órdenes de fabricación y materiales", tone: "moss" },
   cliente: { label: "Cliente invitado", scope: "Catálogo + cotizador de un solo uso", tone: "fog" },
   gerencia: { label: "Gerencia", scope: "Reportes financieros completos", tone: "brick" },
@@ -20,16 +24,10 @@ export default function Accesos() {
   const create = () => {
     if (!nf.label.trim()) return toast("Ponle un nombre al acceso", "warn");
     const link: AccessLink = {
-      id: uid(),
-      token: `ac_${token(12)}`,
-      label: nf.label.trim(),
-      role: nf.role,
-      scope: ROLE_META[nf.role].scope,
-      createdAt: new Date().toISOString(),
+      id: uid(), token: `ac_${token(12)}`, label: nf.label.trim(), role: nf.role,
+      scope: ROLE_META[nf.role].scope, createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + Number(nf.hours) * 3600e3).toISOString(),
-      maxUses: 1,
-      uses: 0,
-      status: "activo",
+      maxUses: 1, uses: 0, status: "activo",
     };
     dispatch({ type: "CREATE_ACCESS", link });
     setNf({ label: "", role: "vendedor", hours: "168" });
@@ -116,7 +114,7 @@ export default function Accesos() {
                       <Td><Badge tone={ROLE_META[l.role].tone}>{ROLE_META[l.role].label}</Badge></Td>
                       <Td className="font-mono num text-mut">{l.uses}/{l.maxUses}</Td>
                       <Td className="text-mut whitespace-nowrap">{fmtDate(l.expiresAt)}</Td>
-                      <Td><Badge tone={linkTone[l.status]} dot>{l.status}</Badge></Td>
+                      <Td><Badge tone={accTone[l.status]} dot>{l.status}</Badge></Td>
                       <Td right>
                         <div className="flex justify-end gap-1">
                           <Btn size="sm" variant="outline" icon="copy" onClick={async () => { await copyText(url(l)); toast("Link copiado — envíalo por WhatsApp o email"); }} />

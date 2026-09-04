@@ -1,17 +1,77 @@
-import { useEffect, useMemo, useState } from "react";
-import { buildOrder, buildPayLink, orderFlow, useStore } from "../lib/store";
-import type { Channel, Movement, Order, OrderKind, OrderStatus, Warehouse } from "../lib/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { buildOrder, buildPayLink, estadosCliente, estadosLabel, orderFlow, saldoDe, useStore } from "../lib/store";
+import type { Channel, Movement, Order, OrderKind, OrderSpec, OrderStatus, Warehouse } from "../lib/types";
 import { calcTotals, copyText, fmtDate, money, timeAgo, uid } from "../lib/util";
 import { Badge, Btn, Card, Drawer, EmptyState, Field, Icon, Input, Modal, SectionTitle, Select, Tabs, Td, Th } from "../components/ui";
 import { Thumb } from "../components/Img";
 
 const orderTone: Record<OrderStatus, "pine" | "oak" | "steel" | "moss" | "brick" | "fog"> = {
-  pendiente: "fog", por_aprobar: "oak", aprobado: "pine", fabricacion: "oak", en_bodega: "steel",
-  listo_despacho: "steel", despachado: "oak", entregado: "pine", anulado: "brick", cancelado: "brick",
+  borrador: "fog", pendiente: "fog", por_aprobar: "oak", aprobado: "pine", confirmado: "pine",
+  enviado_proveedor: "oak", en_fabricacion: "oak", en_produccion: "oak", listo_proveedor: "steel",
+  en_bodega: "steel", listo_despacho: "steel", despachado: "oak", entregado: "pine",
+  anulado: "brick", cancelado: "brick",
 };
 
 const WH_LABEL: Record<Warehouse, string> = { showroom: "Showroom", bodega: "Bodega", taller: "Taller" };
-const emptySpec = () => ({ tapiz: "", tapizSec: "", cojines: "", lacado: "", notas: "", fotos: [{ campo: "Tapiz principal", label: "" }] });
+const emptySpec = (): OrderSpec => ({ tapiz: "", tapizSec: "", cojines: "", lacado: "", notas: "", fotos: [] });
+
+const SPEC_FIELDS: { campo: "tapiz" | "tapizSec" | "cojines" | "lacado"; label: string; placeholder: string }[] = [
+  { campo: "tapiz", label: "Tapiz principal", placeholder: "ej: Lino crudo T-04" },
+  { campo: "tapizSec", label: "Tapiz secundario", placeholder: "ej: Chenille gris piedra" },
+  { campo: "cojines", label: "Cojines", placeholder: "cantidad y tela" },
+  { campo: "lacado", label: "Lacado", placeholder: "ej: Natural mate (poro abierto)" },
+];
+
+/* sube una foto real y la guarda como data-URL (con miniatura) */
+function FotoBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const isImg = value.startsWith("data:") || value.startsWith("http");
+  return (
+    <>
+      <button type="button" onClick={() => ref.current?.click()} title={value ? "Cambiar foto" : "Subir foto"}
+        className="relative w-12 h-12 rounded-lg border border-oak/30 bg-paper overflow-hidden grid place-items-center hover:border-oak hover:shadow-sm transition-all shrink-0 group">
+        {isImg ? (
+          <img src={value} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <Icon name="image" size={16} className="text-oakd" />
+        )}
+        {value && !isImg && <span className="absolute inset-x-0 bottom-0 bg-night/70 text-paper text-[6.5px] font-mono truncate px-0.5 py-px">{value}</span>}
+        <span className="absolute inset-0 bg-wine/0 group-hover:bg-wine/10 transition-colors" />
+      </button>
+      <input ref={ref} type="file" accept="image/*" className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          const r = new FileReader();
+          r.onload = () => onChange(r.result as string);
+          r.readAsDataURL(f);
+          e.target.value = "";
+        }} />
+    </>
+  );
+}
+
+/* una fila de spec: su etiqueta, su campo de texto y SU foto (asociada al campo) */
+function SpecRow({ spec, campo, label, placeholder, onChange }: {
+  spec: OrderSpec; campo: "tapiz" | "tapizSec" | "cojines" | "lacado"; label: string; placeholder: string;
+  onChange: (s: OrderSpec) => void;
+}) {
+  const foto = spec.fotos.find((f) => f.campo === label)?.label ?? "";
+  const setFoto = (v: string) => {
+    const rest = spec.fotos.filter((f) => f.campo !== label);
+    onChange({ ...spec, fotos: v ? [...rest, { campo: label, label: v }] : rest });
+  };
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg bg-card border border-line px-2.5 py-2">
+      <FotoBox value={foto} onChange={setFoto} />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase font-bold tracking-wider text-oakd mb-1">{label}</div>
+        <input value={spec[campo]} onChange={(e) => onChange({ ...spec, [campo]: e.target.value })} placeholder={placeholder}
+          className="w-full bg-transparent border-b border-line focus:border-oak outline-none text-[13px] pb-1 transition-colors placeholder:text-fog" />
+      </div>
+    </div>
+  );
+}
 
 export default function Operaciones({ initialQuery }: { initialQuery?: string }) {
   const { state, dispatch, toast } = useStore();
@@ -48,6 +108,10 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
     if (initialQuery === "stock") setShowNew("venta");
     if (initialQuery === "pedido") setShowNew("pedido");
     if (initialQuery === "online") simulateOnline();
+    if (initialQuery && initialQuery.startsWith("PED-")) {
+      const found = state.orders.find((o) => o.code === initialQuery);
+      if (found) setOpenId(found.id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 
@@ -95,16 +159,21 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
     dispatch({ type: "ADVANCE_ORDER", id: o.id, status: next });
     if (next === "entregado") toast(`${o.code} entregado · factura electrónica emitida`);
     else if (next === "listo_despacho") toast(`${o.code} listo para despacho — créalo en Logística`);
-    else toast(`${o.code} → ${next.toUpperCase()}`);
+    else toast(`${o.code} → ${estadosLabel[next].toUpperCase()}`);
   };
 
   const addRecibo = (o: Order) => {
     const amount = Number(abono.amount);
-    const saldo = o.total - o.recibos.reduce((a, r) => a + r.amount, 0);
+    const saldo = saldoDe(o);
     if (!amount || amount <= 0 || amount > saldo + 0.01) return toast(`Monto inválido · saldo pendiente ${money(saldo)}`, "warn");
     dispatch({ type: "ADD_RECIBO", orderId: o.id, amount, method: abono.method, note: amount >= saldo - 0.01 ? "Pago del saldo" : "Abono parcial" });
     setAbono({ amount: "", method: abono.method });
-    toast(`Recibo registrado · ${money(amount)}`);
+    toast(`Recibo registrado · ${money(amount)} — espera validación del dueño`, "warn");
+  };
+
+  const validar = (o: Order, reciboId: string) => {
+    dispatch({ type: "VALIDAR_RECIBO", orderId: o.id, reciboId });
+    toast("Pago validado · saldo y contabilidad actualizados");
   };
 
   const saveMv = () => {
@@ -123,7 +192,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3 anim-up">
         <div>
-          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">OMS · flujo BLETIA — Venta stock vs Pedido bajo specs</div>
+          <div className="font-mono text-[11px] tracking-[0.22em] text-oak uppercase">OMS · máquina de estados BLETIA (15 estados) — Venta stock vs Pedido bajo specs</div>
           <h1 className="font-display font-extrabold text-[26px] text-ink mt-0.5">Pedidos, stock y kardex</h1>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -140,12 +209,12 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
 
       {tab === "pedidos" && (
         <>
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 stagger">
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 stagger">
             {pipeline.map(({ st, n }) => (
               <button key={st} onClick={() => setStatusF(statusF === st ? null : st)}
-                className={`bg-card border rounded-xl px-2.5 py-2.5 text-left hover:-translate-y-px transition-all ${statusF === st ? "border-pine ring-2 ring-pine/20 shadow-md" : "border-line hover:border-pine/40"}`}>
-                <div className="font-display font-extrabold text-[19px] text-ink num leading-none">{n}</div>
-                <div className="mt-1.5"><Badge tone={orderTone[st]} dot>{st.replace("_", " ")}</Badge></div>
+                className={`bg-card border rounded-xl px-2 py-2.5 text-left hover:-translate-y-px transition-all ${statusF === st ? "border-pine ring-2 ring-pine/20 shadow-md" : "border-line hover:border-pine/40"}`}>
+                <div className="font-display font-extrabold text-[18px] text-ink num leading-none">{n}</div>
+                <div className="mt-1.5"><Badge tone={orderTone[st]} dot>{estadosLabel[st]}</Badge></div>
               </button>
             ))}
           </div>
@@ -171,11 +240,13 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
             <div className="overflow-x-auto">
               <table className="w-full text-[13px] min-w-[900px]">
                 <thead className="bg-ink/3 border-b border-line">
-                  <tr><Th>Pedido</Th><Th>Cliente</Th><Th>Ítems</Th><Th right>Total +IVA</Th><Th>Estado</Th><Th>Pago</Th><Th>Canal</Th><Th right>Flujo</Th></tr>
+                  <tr><Th>Pedido</Th><Th>Cliente</Th><Th>Ítems</Th><Th right>Total +IVA</Th><Th right>Saldo</Th><Th>Estado</Th><Th>Pago</Th><Th right>Flujo</Th></tr>
                 </thead>
                 <tbody>
                   {orders.map((o) => {
                     const next = orderFlow[orderFlow.indexOf(o.status) + 1];
+                    const saldo = saldoDe(o);
+                    const sinValidar = o.recibos.filter((r) => !r.validado).length;
                     return (
                       <tr key={o.id} className="border-b border-line/70 last:border-0 hover:bg-pinel/25 transition-colors cursor-pointer" onClick={() => { setOpenId(o.id); setDrawerTab("resumen"); }}>
                         <Td>
@@ -191,13 +262,16 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                         </Td>
                         <Td className="text-mut">{o.items.length} línea{o.items.length > 1 ? "s" : ""}</Td>
                         <Td right className="font-mono text-[12.5px] font-semibold text-ink num">{money(o.total)}</Td>
-                        <Td><Badge tone={orderTone[o.status]} dot>{o.status.replace("_", " ")}</Badge></Td>
+                        <Td right>
+                          <span className={`font-mono text-[12px] num ${saldo > 0 ? "text-oakd font-semibold" : "text-[#41621f]"}`}>{saldo > 0 ? money(saldo) : "$0,00"}</span>
+                          {sinValidar > 0 && <div className="text-[9.5px] text-brick font-bold">{sinValidar} sin validar</div>}
+                        </Td>
+                        <Td><Badge tone={orderTone[o.status]} dot>{estadosLabel[o.status]}</Badge></Td>
                         <Td><Badge tone={o.payment === "pagado" ? "moss" : o.payment === "parcial" ? "oak" : "fog"}>{o.payment}</Badge></Td>
-                        <Td className="text-mut capitalize">{o.channel.replace("_", " ")}</Td>
                         <Td right>
                           <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {next && !["anulado", "cancelado"].includes(o.status) && (
-                              <Btn size="sm" variant="outline" icon="arrow" onClick={() => advance(o)}>{next === "entregado" ? "Entregar" : next === "listo_despacho" ? "Listar" : next === "en_bodega" ? "A bodega" : "Avanzar"}</Btn>
+                              <Btn size="sm" variant="outline" icon="arrow" onClick={() => advance(o)}>{next === "entregado" ? "Entregar" : "Avanzar"}</Btn>
                             )}
                             <Btn size="sm" variant="ghost" icon="eye" onClick={() => { setOpenId(o.id); setDrawerTab("resumen"); }} />
                           </div>
@@ -275,17 +349,21 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
       {/* drawer de pedido */}
       <Drawer open={!!cur} onClose={() => setOpenId(null)} kicker={`${cur?.code ?? ""} · ${cur?.kind === "pedido" ? "pedido bajo specs" : "venta de stock"}`} title={cur?.customer ?? ""}>
         {cur && (() => {
-          const saldo = Math.max(0, cur.total - cur.recibos.reduce((a, r) => a + r.amount, 0));
+          const saldo = saldoDe(cur);
           const next = orderFlow[orderFlow.indexOf(cur.status) + 1];
           const transportes = state.suppliers.filter((s) => s.kind === "transporte");
           return (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={orderTone[cur.status]} dot>{cur.status.replace("_", " ")}</Badge>
+                <Badge tone={orderTone[cur.status]} dot>{estadosLabel[cur.status]}</Badge>
                 <Badge tone={cur.payment === "pagado" ? "moss" : cur.payment === "parcial" ? "oak" : "fog"}>{cur.payment}</Badge>
                 <Badge tone="fog">{cur.channel.replace("_", " ")}</Badge>
                 <Badge tone="steel">{cur.bultos} bultos</Badge>
                 <span className="ml-auto font-display font-extrabold text-[22px] text-ink num">{money(cur.total)}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-steell/60 border border-steel/20 px-3 py-2">
+                <Icon name="eye" size={14} className="text-steel" />
+                <span className="text-[12px] text-steel">El cliente ve: <b className="font-semibold">{estadosCliente[cur.status]}</b> <span className="text-steel/70">· vía link de seguimiento</span></span>
               </div>
 
               <div className="flex gap-1 bg-ink/5 rounded-lg p-1">
@@ -323,7 +401,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                   <div className="flex flex-wrap gap-2">
                     {next && !["anulado", "cancelado"].includes(cur.status) && (
                       <Btn icon="arrow" onClick={() => advance(cur)} className="flex-1">
-                        {next === "entregado" ? "Confirmar entrega" : `Avanzar → ${next.replace("_", " ")}`}
+                        {next === "entregado" ? "Confirmar entrega" : `Avanzar → ${estadosLabel[next]}`}
                       </Btn>
                     )}
                     {!["anulado", "cancelado", "entregado"].includes(cur.status) && (
@@ -351,25 +429,29 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                       </div>
                       {i.spec && (
                         <>
-                          <div className="grid grid-cols-2 gap-2 text-[12px]">
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Tapiz principal</div>{i.spec.tapiz || "—"}</div>
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Tapiz secundario</div>{i.spec.tapizSec || "—"}</div>
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Cojines</div>{i.spec.cojines || "—"}</div>
-                            <div className="rounded-lg bg-card border border-line p-2"><div className="text-[9.5px] uppercase font-bold text-fog">Lacado</div>{i.spec.lacado || "—"}</div>
+                          <div className="space-y-2">
+                            {SPEC_FIELDS.map(({ campo, label }) => {
+                              const val = i.spec?.[campo] ?? "";
+                              const foto = i.spec?.fotos.find((f) => f.campo === label)?.label ?? "";
+                              const isImg = foto.startsWith("data:") || foto.startsWith("http");
+                              return (
+                                <div key={campo} className="flex items-center gap-2.5 rounded-lg bg-card border border-line px-2.5 py-2">
+                                  {foto ? (
+                                    isImg
+                                      ? <img src={foto} alt={label} className="w-11 h-11 rounded-lg object-cover border border-line shrink-0" />
+                                      : <span className="w-11 h-11 rounded-lg border border-line grid place-items-center shrink-0 bg-paper"><Icon name="image" size={14} className="text-oakd" /></span>
+                                  ) : (
+                                    <span className="w-11 h-11 rounded-lg bg-ink/4 grid place-items-center shrink-0"><Icon name="image" size={14} className="text-fog" /></span>
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="text-[9.5px] uppercase font-bold text-fog">{label}</div>
+                                    <div className="text-[12.5px] text-ink truncate">{val || "—"}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                           {i.spec.notas && <div className="mt-2 text-[12px] text-oakd bg-card border border-line rounded-lg p-2">✎ {i.spec.notas}</div>}
-                          {i.spec.fotos.length > 0 && (
-                            <div className="mt-2.5">
-                              <div className="text-[10px] uppercase font-bold text-fog mb-1.5">Fotos por campo (viajan en el link único)</div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {i.spec.fotos.map((f, fx) => (
-                                  <span key={fx} className="flex items-center gap-1.5 font-mono text-[11px] bg-card border border-line rounded-lg px-2 py-1">
-                                    <Icon name="image" size={11} className="text-oakd" />{f.campo}: {f.label || "por subir"}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </>
                       )}
                     </div>
@@ -395,30 +477,48 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                 <div className="space-y-3 anim-up">
                   <div className={`rounded-xl border p-3.5 flex items-center justify-between gap-2 ${saldo > 0 ? "border-oak/40 bg-oakl/50" : "border-moss/40 bg-mossl/60"}`}>
                     <div>
-                      <div className="text-[11px] uppercase font-bold tracking-wider text-mut">Saldo pendiente</div>
+                      <div className="text-[11px] uppercase font-bold tracking-wider text-mut">Saldo pendiente (pagos validados)</div>
                       <div className="font-display font-extrabold text-[24px] text-ink num">{money(saldo)}</div>
                     </div>
                     {saldo === 0
                       ? <Badge tone="moss" dot>pagado completo</Badge>
                       : <Btn variant="oak" size="sm" icon="qr" onClick={() => {
-                          const link = buildPayLink(state, Math.round(saldo * 100) / 100, `Saldo ${cur.code} · ${cur.customer}`, cur.customer, cur.id);
+                          const link = buildPayLink(state, saldo, `Saldo ${cur.code} · ${cur.customer}`, cur.customer, cur.id);
                           dispatch({ type: "CREATE_PAYLINK", link });
                           toast(`Link PayPhone por el saldo (${money(saldo)}) generado — cópialo en Cobros`);
                         }}>Cobrar saldo con PayPhone</Btn>}
                   </div>
+
                   {cur.recibos.length > 0 && (
                     <div className="space-y-1.5">
                       {cur.recibos.map((r) => (
-                        <div key={r.id} className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-[12.5px]">
-                          <div><span className="font-mono text-mut">{r.code}</span> <span className="text-ink">{r.note}</span><div className="text-[10.5px] text-fog">{r.method} · {fmtDate(r.date)}</div></div>
-                          <span className="font-mono font-semibold text-[#41621f] num">+{money(r.amount)}</span>
+                        <div key={r.id} className={`rounded-lg border px-3 py-2 text-[12.5px] ${r.validado ? "border-line" : "border-oak/40 bg-oakl/40"}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div><span className="font-mono text-mut">{r.code}</span> <span className="text-ink">{r.note}</span></div>
+                            <span className="font-mono font-semibold text-[#41621f] num">+{money(r.amount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="text-[10.5px] text-fog">{r.method} · {fmtDate(r.date)}</div>
+                            {r.validado
+                              ? <Badge tone="moss">validado</Badge>
+                              : <Btn size="sm" variant="oak" icon="check" onClick={() => validar(cur, r.id)}>Validar pago</Btn>}
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
+
+                  <div className="rounded-lg bg-night px-3 py-2.5 flex items-start gap-2.5">
+                    <Icon name="shield" size={14} className="text-oakl mt-0.5" />
+                    <p className="text-[11px] text-paper/70 leading-relaxed">
+                      Regla BLETIA (<span className="font-mono text-[10px]">RecibosErp.php</span>): un pago <b className="text-paper">no cuenta hasta que el dueño lo valida</b>.
+                      Los cobros PayPhone se validan solos (webhook firmado); transferencias y depósitos esperan tu confirmación.
+                    </p>
+                  </div>
+
                   {saldo > 0 && (
                     <div className="rounded-lg border border-line p-3 space-y-2.5">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-mut">Registrar recibo / abono</div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-mut">Registrar recibo / abono (quedará por validar)</div>
                       <div className="grid grid-cols-2 gap-2">
                         <Input type="number" placeholder={`máx ${saldo.toFixed(2)}`} value={abono.amount} onChange={(e) => setAbono({ ...abono, amount: e.target.value })} />
                         <Select value={abono.method} onChange={(e) => setAbono({ ...abono, method: e.target.value })}>
@@ -506,24 +606,14 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
                   </div>
                   {showNew === "pedido" && (
                     <div className="rounded-lg bg-oakl/40 border border-oak/25 p-2.5 space-y-2 anim-up">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input placeholder="Tapiz principal (ej: Lino crudo T-04)" value={it.spec.tapiz} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, tapiz: e.target.value } } : x) })} />
-                        <Input placeholder="Tapiz secundario" value={it.spec.tapizSec} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, tapizSec: e.target.value } } : x) })} />
-                        <Input placeholder="Cojines" value={it.spec.cojines} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, cojines: e.target.value } } : x) })} />
-                        <Input placeholder="Lacado (ej: Natural mate)" value={it.spec.lacado} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, lacado: e.target.value } } : x) })} />
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-oakd/70 flex items-center gap-1.5">
+                        <Icon name="image" size={11} /> Foto de referencia en cada campo (viaja en el link único)
                       </div>
+                      {SPEC_FIELDS.map(({ campo, label, placeholder }) => (
+                        <SpecRow key={campo} spec={it.spec} campo={campo} label={label} placeholder={placeholder}
+                          onChange={(s) => setNf({ ...nf, items: nf.items.map((x, ix) => (ix === i ? { ...x, spec: s } : x)) })} />
+                      ))}
                       <Input placeholder="Notas del cliente (medidas especiales, esquinas…)" value={it.spec.notas} onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, notas: e.target.value } } : x) })} />
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        <span className="text-[10px] uppercase font-bold text-oakd">Fotos por campo:</span>
-                        {it.spec.fotos.map((f, fx) => (
-                          <span key={fx} className="flex items-center gap-1 font-mono text-[10.5px] bg-card border border-line rounded px-1.5 py-0.5">
-                            <Icon name="image" size={10} className="text-oakd" />{f.campo}:
-                            <input className="bg-transparent outline-none w-28" placeholder="archivo.jpg" value={f.label}
-                              onChange={(e) => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, fotos: x.spec.fotos.map((ff, ffx) => (ffx === fx ? { ...ff, label: e.target.value } : ff)) } } : x) })} />
-                          </span>
-                        ))}
-                        <button className="text-[10.5px] font-bold text-oakd underline underline-offset-2" onClick={() => setNf({ ...nf, items: nf.items.map((x, ix) => ix === i ? { ...x, spec: { ...x.spec, fotos: [...x.spec.fotos, { campo: `Campo ${x.spec.fotos.length + 1}`, label: "" }] } } : x) })}>+ foto</button>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -576,7 +666,7 @@ export default function Operaciones({ initialQuery }: { initialQuery?: string })
         {cur && (
           <div className="space-y-3">
             <div className="text-[13px] text-mut">
-              Vas a <b className="text-ink">{anula === "anulado" ? "ANULAR" : "cancelar"}</b> <b className="font-mono">{cur.code}</b> de {cur.customer} por {money(cur.total)}. Quedará registrado en la traza.
+              Vas a <b className="text-ink">{anula === "anulado" ? "ANULAR" : "cancelar"}</b> <b className="font-mono">{cur.code}</b> de {cur.customer} por {money(cur.total)}. Quedará registrado en la traza con folio de anulación.
             </div>
             <Field label="Motivo"><Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej: cliente desistió / error de precio" /></Field>
             <div className="flex justify-end gap-2">

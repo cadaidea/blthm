@@ -19,18 +19,12 @@ export const sriAuth = () => {
 };
 
 export const money = (n: number, cents = true) =>
-  "$" +
-  n.toLocaleString("es-EC", {
-    minimumFractionDigits: cents ? 2 : 0,
-    maximumFractionDigits: cents ? 2 : 0,
-  });
+  "$" + n.toLocaleString("es-EC", { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 });
 
 export const num = (n: number) => n.toLocaleString("es-EC", { maximumFractionDigits: 0 });
 
-export const fmtDate = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" });
-};
+export const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" });
 
 export const fmtTime = (ts: number) =>
   new Date(ts).toLocaleTimeString("es-EC", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -54,12 +48,6 @@ export const daysAgoIso = (days: number, hour = 10, min = 0) => {
 
 export const inDaysIso = (days: number) => {
   const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
-};
-
-export const addDaysIso = (iso: string, days: number) => {
-  const d = new Date(iso);
   d.setDate(d.getDate() + days);
   return d.toISOString();
 };
@@ -103,13 +91,16 @@ export const downloadCsv = (filename: string, header: string[], rows: (string | 
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 };
 
-export const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join("");
+/* Genera slugs como WordPress: "Cuánto dura un mueble" → "cuanto-dura-un-mueble" */
+export const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
-export const marginPct = (cost: number, price: number) =>
-  price <= 0 ? 0 : Math.round(((price - cost) / price) * 100);
+export const initials = (name: string) =>
+  name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
+
+export const marginPct = (cost: number, price: number) => (price <= 0 ? 0 : Math.round(((price - cost) / price) * 100));

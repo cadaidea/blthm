@@ -1,4 +1,4 @@
-/* Lightweight hand-rolled SVG charts — no chart library needed */
+/* Gráficos SVG a mano — sin librerías externas */
 
 export function Sparkline({ data, height = 56, stroke = "#19604f", fill = true }: { data: number[]; height?: number; stroke?: string; fill?: boolean }) {
   const w = 260;

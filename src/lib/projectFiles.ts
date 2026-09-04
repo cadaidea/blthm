@@ -36,37 +36,30 @@ import vAjustes from "../views/Ajustes.tsx?raw";
 const README = `# TALLER UNO — Suite de gestión para mueblería (Ecuador)
 
 ERP · CRM · PIM · OMS · MES · DAM · Contabilidad · Cobros PayPhone · Facturación SRI
-Pensada para el flujo BLETIA: venta de stock vs pedido bajo specs, guías de remisión,
-recibos/saldos, links únicos de confirmación y BOM de materias primas.
+Puerto del ERP BLETIA (upgrade.bletia.ec / github.com/cadaidea/blthm → bletia/):
+máquina de 15 estados con vista del cliente, validación de pagos por el dueño,
+specs de personalización con fotos, guías de remisión SRI y BOM + MRP.
 
 ## Stack (100% open source)
 - React 18 + Vite + Tailwind CSS 4 (este panel)
 - Node 20 + NestJS (API REST + workers) — capa a conectar en producción
-- PostgreSQL 16 (datos maestros y contables)
-- Redis 7 (bus de eventos + tokens de un solo uso)
-- Nginx + Certbot (proxy inverso + SSL gratis)
-- Docker Compose (orquestación en VPS OVH)
+- PostgreSQL 16 · Redis 7 · Nginx + Certbot · Docker Compose
 
 ## Correr en desarrollo
     npm install
     npm run dev        # http://localhost:3000
 
 ## Compilar para producción
-    npm run build      # genera ./dist (archivos estáticos)
+    npm run build      # genera ./dist
 
 ## Despliegue en VPS (File Manager + SSH)
     Ver deploy/comandos-ssh.txt — paso a paso exacto.
 
 ## ¿Dónde está la base de datos?
-- Este ZIP NO contiene una base de datos (correcto por diseño: la base vive en el servidor).
-- La demo persiste en el navegador (localStorage). Tus datos de prueba viajan en
-  deploy/datos-demo.json dentro de este ZIP.
-- En el VPS, \`docker compose up -d\` crea PostgreSQL con un volumen persistente
-  (\`datos_pg\`): actualizar el código NUNCA borra los datos.
-
-## Fotos de producto
-Las 6 fotos de estudio están referenciadas por URL en src/lib/seed.ts.
-Para self-hosting, descargarlas a /public/img/ y ajustar las rutas.
+- El ZIP NO contiene base de datos (correcto: la base vive en el servidor).
+- La demo persiste en el navegador (localStorage).
+- En el VPS, 'docker compose up -d' crea PostgreSQL con volumen persistente
+  ('datos_pg'): actualizar el código NUNCA borra los datos.
 
 ## Licencias
 MIT (React, Vite, NestJS) · BSD (Redis, Nginx) · PostgreSQL License · Apache-2.0 (Docker, Tailwind)
@@ -120,18 +113,13 @@ const NGINX = `server {
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
 
-    # SPA: todas las rutas caen a index.html
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # Cache agresivo para assets con hash
     location /assets/ {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
-
-    # (Producción) API NestJS en :3001
-    # location /api/ { proxy_pass http://host.docker.internal:3001/; }
 }
 `;
 
@@ -149,40 +137,28 @@ const GUIA_SSH = `════════════════════�
    sudo apt install -y nodejs
    unzip -o taller-uno.zip -d taller-uno && cd taller-uno
    npm install
-   npm run build                 # genera ./dist
-   docker compose up -d          # crea PostgreSQL + Redis en volúmenes
+   npm run build
+   docker compose up -d
 
 3) ACTUALIZACIÓN SIN PERDER DATOS (tu rutina habitual)
-   ─ File Manager: sube el nuevo .zip (o git pull si usas GitHub)
    cd /var/www/taller-uno
-   unzip -o ../taller-uno.zip -d .      # sobreescribe SOLO código
+   unzip -o ../taller-uno.zip -d .
    npm install && npm run build
    docker compose restart web
-   → La base de datos NUNCA se toca: vive en el volumen 'datos_pg'.
-   → El usuario/trabajadores no notan nada: el corte dura ~2 segundos.
+   → La base NUNCA se toca: vive en el volumen 'datos_pg'.
 
-4) RESPALDO DIARIO DE LA BASE (una línea, va en cron)
-   sudo mkdir -p /respaldos
-   crontab -e  →  agrega:
+4) RESPALDO DIARIO (cron)
    0 3 * * * cd /var/www/taller-uno && docker compose exec -T db pg_dump -U taller taller_uno | gzip > /respaldos/taller-$(date +\\%F).sql.gz
 
-5) ROLLBACK SI ALGO SALE MAL (30 segundos)
-   ─ Conserva siempre el .zip anterior en el VPS:
-   cd /var/www/taller-uno
-   unzip -o ../taller-uno-ANTERIOR.zip -d .
-   npm install && npm run build && docker compose restart web
-
-6) FLUJO GITHUB (opcional, recomendado)
-   git init && git add -A && git commit -m "v1.0 suite mueblera"
-   git remote add origin git@github.com:TU-USUARIO/taller-uno.git
-   git push -u origin main
-   ─ En el VPS: git clone ... y para actualizar: git pull && npm i && npm run build
+5) FLUJO GITHUB (recomendado)
+   git init && git add -A && git commit -m "v2.1 suite mueblera"
+   git remote add origin git@github.com:TU-USUARIO/taller-uno.git && git push -u origin main
+   En el VPS: git clone y para actualizar: git pull && npm i && npm run build
 
 ¿Y LA BASE DE DATOS?
-   ─ El ZIP NO la incluye (correcto: la base vive en el servidor, no viaja).
-   ─ La demo guardó tus datos de prueba en deploy/datos-demo.json.
-   ─ PostgreSQL se crea sola con 'docker compose up -d' y persiste en 'datos_pg'.
-   ─ Migrar la demo a producción: carga datos-demo.json vía API/importador.
+   ─ El ZIP NO la incluye (correcto: vive en el servidor, no viaja).
+   ─ La demo guardó tus datos en deploy/datos-demo.json.
+   ─ PostgreSQL se crea sola con 'docker compose up -d' (volumen datos_pg).
 `;
 
 const GITIGNORE = `node_modules/
@@ -193,17 +169,12 @@ dist/
 .DS_Store
 `;
 
-const ENV_EXAMPLE = `# Copiar a .env en el VPS y cambiar la contraseña
-DB_PASSWORD=pon-aqui-una-clave-larga-y-unica
-`;
-
 const SOURCE_FILES: [string, string][] = [
   ["package.json", pkgJson],
   ["index.html", indexHtml],
   ["vite.config.js", viteConfig],
   ["tsconfig.json", tsconfigJson],
   [".gitignore", GITIGNORE],
-  [".env.example", ENV_EXAMPLE],
   ["src/main.tsx", mainTsx],
   ["src/App.tsx", appTsx],
   ["src/index.css", indexCss],

@@ -39,7 +39,7 @@ export default function Logistica() {
   const [etqId, setEtqId] = useState(state.despachos[0]?.id ?? "");
 
   const transportes = state.suppliers.filter((s) => s.kind === "transporte");
-  const elegibles = state.orders.filter((o) => ["aprobado", "en_bodega", "listo_despacho"].includes(o.status) && !state.despachos.some((d) => d.orderId === o.id));
+  const elegibles = state.orders.filter((o) => ["aprobado", "confirmado", "en_bodega", "listo_despacho"].includes(o.status) && !state.despachos.some((d) => d.orderId === o.id));
 
   const pesoDe = (orderId: string) => {
     const o = state.orders.find((x) => x.id === orderId);
@@ -239,7 +239,6 @@ export default function Logistica() {
         </div>
       )}
 
-      {/* modal nuevo despacho */}
       <Modal open={showNew} onClose={() => setShowNew(false)} kicker="DespachoErp" title="Nuevo despacho">
         <div className="space-y-3">
           <Field label="Pedido a despachar">
@@ -248,7 +247,7 @@ export default function Logistica() {
               {elegibles.map((o) => <option key={o.id} value={o.id}>{o.code} · {o.customer} · {o.bultos} bultos · {o.status.replace("_", " ")}</option>)}
             </Select>
           </Field>
-          {elegibles.length === 0 && <div className="text-[11.5px] text-oakd bg-oakl/60 border border-oak/25 rounded-lg px-3 py-2">No hay pedidos en estados despachables (aprobado / en bodega / listo despacho) sin despacho asignado.</div>}
+          {elegibles.length === 0 && <div className="text-[11.5px] text-oakd bg-oakl/60 border border-oak/25 rounded-lg px-3 py-2">No hay pedidos en estados despachables (aprobado / confirmado / en bodega / listo despacho) sin despacho asignado.</div>}
           <Field label="Transportista">
             <Select value={nd.transportId} onChange={(e) => setNd({ ...nd, transportId: e.target.value })}>
               <option value="">— seleccionar —</option>
@@ -269,7 +268,6 @@ export default function Logistica() {
         </div>
       </Modal>
 
-      {/* drawer guía XML */}
       <Drawer open={!!guiaView} onClose={() => setGuiaView(null)} kicker={`Guía de remisión · ${guiaView?.guia?.numero ?? ""}`} title={`${guiaView?.code ?? ""} · ${guiaView?.customer ?? ""}`}>
         {guiaView?.guia && (
           <div className="space-y-3">

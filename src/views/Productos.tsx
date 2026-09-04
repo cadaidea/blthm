@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { buildPayLink, useStore } from "../lib/store";
 import type { Product, Warehouse } from "../lib/types";
 import { marginPct, money, uid } from "../lib/util";
-import { Badge, Btn, Card, Drawer, Field, Icon, Input, Modal, SectionTitle, Select, Td, Th, EmptyState, CopyBtn } from "../components/ui";
+import { Badge, Btn, Card, CopyBtn, Drawer, EmptyState, Field, Icon, Input, Modal, SectionTitle, Select, Td, Th } from "../components/ui";
 import { Thumb } from "../components/Img";
 
 const WH_LABEL: Record<Warehouse, string> = { showroom: "Showroom", bodega: "Bodega", taller: "Taller" };
@@ -32,21 +32,11 @@ export default function Productos({ initialQuery }: { initialQuery?: string }) {
     const p: Product = {
       id: uid(),
       sku: `${np.category.slice(0, 3).toUpperCase()}-${String(100 + state.products.length + 1)}`,
-      name: np.name.trim(),
-      category: np.category,
-      line: np.line,
-      materials: ["Por definir en ficha"],
-      cost: Number(np.cost) || 0,
-      price: Number(np.price),
+      name: np.name.trim(), category: np.category, line: np.line,
+      materials: ["Por definir en ficha"], cost: Number(np.cost) || 0, price: Number(np.price),
       stock: { showroom: 0, bodega: Number(np.stock) || 0, taller: 0 },
-      min: Number(np.min) || 2,
-      status: "activo",
-      img: "",
-      mediaIds: [],
-      dims: "—",
-      weightKg: 0,
-      leadDays: np.line === "importado" ? 40 : 15,
-      createdAt: new Date().toISOString(),
+      min: Number(np.min) || 2, status: "activo", img: "", mediaIds: [],
+      dims: "—", weightKg: 0, leadDays: np.line === "importado" ? 40 : 15, createdAt: new Date().toISOString(),
     };
     dispatch({ type: "CREATE_PRODUCT", product: p });
     setShowNew(false);
@@ -94,10 +84,7 @@ export default function Productos({ initialQuery }: { initialQuery?: string }) {
         <div className="overflow-x-auto">
           <table className="w-full text-[13px] min-w-[860px]">
             <thead className="bg-ink/3 border-b border-line">
-              <tr>
-                <Th>Producto</Th><Th>Categoría</Th><Th right>Costo</Th><Th right>PVP +IVA</Th><Th right>Margen</Th>
-                <Th>Stock (S/B/T)</Th><Th>Estado</Th><Th right>Acciones</Th>
-              </tr>
+              <tr><Th>Producto</Th><Th>Categoría</Th><Th right>Costo</Th><Th right>PVP +IVA</Th><Th right>Margen</Th><Th>Stock (S/B/T)</Th><Th>Estado</Th><Th right>Acciones</Th></tr>
             </thead>
             <tbody>
               {list.map((p) => {
@@ -138,7 +125,6 @@ export default function Productos({ initialQuery }: { initialQuery?: string }) {
         </div>
       </Card>
 
-      {/* ficha drawer */}
       <Drawer open={!!open} onClose={() => setOpen(null)} kicker={`Ficha PIM · ${open?.sku ?? ""}`} title={open?.name ?? ""}>
         {open && (() => {
           const history = state.orders.filter((o) => o.items.some((i) => i.productId === open.id));
@@ -159,9 +145,7 @@ export default function Productos({ initialQuery }: { initialQuery?: string }) {
               </div>
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-mut mb-1.5">Materiales</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {open.materials.map((m) => <Badge key={m} tone="oak">{m}</Badge>)}
-                </div>
+                <div className="flex flex-wrap gap-1.5">{open.materials.map((m) => <Badge key={m} tone="oak">{m}</Badge>)}</div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[12.5px]">
                 <div className="rounded-lg border border-line p-2.5"><div className="text-fog text-[10.5px] uppercase font-bold">Dimensiones</div>{open.dims}</div>
@@ -176,7 +160,7 @@ export default function Productos({ initialQuery }: { initialQuery?: string }) {
                     <div key={o.id} className="flex items-center justify-between text-[12.5px] rounded-lg border border-line px-3 py-2">
                       <span className="font-mono text-mut">{o.code}</span>
                       <span className="text-ink">{o.customer}</span>
-                      <Badge tone={o.status === "entregado" ? "pine" : "steel"}>{o.status}</Badge>
+                      <Badge tone={o.status === "entregado" ? "pine" : "steel"}>{o.status.replace("_", " ")}</Badge>
                     </div>
                   ))}
                   {history.length === 0 && <div className="text-[12px] text-mut">Aún sin pedidos con este SKU.</div>}
@@ -184,14 +168,13 @@ export default function Productos({ initialQuery }: { initialQuery?: string }) {
               </div>
               <div className="flex gap-2 pt-1">
                 <CopyBtn text={`${state.settings.linkBase}/cat/${open.sku}`} label="Copiar link de catálogo" size="md" />
-                <Btn variant="oak" icon="qr" onClick={() => { quickPayLink(open); }} className="flex-1">Link de cobro directo</Btn>
+                <Btn variant="oak" icon="qr" onClick={() => quickPayLink(open)} className="flex-1">Link de cobro directo</Btn>
               </div>
             </div>
           );
         })()}
       </Drawer>
 
-      {/* new product */}
       <Modal open={showNew} onClose={() => setShowNew(false)} kicker="PIM · alta de SKU" title="Nuevo producto">
         <div className="space-y-3">
           <Field label="Nombre comercial"><Input value={np.name} onChange={(e) => setNp({ ...np, name: e.target.value })} placeholder="Ej: Mesa de Centro Mármol Cotopaxi" /></Field>
